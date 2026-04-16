@@ -3,6 +3,7 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
+import TextAlign from '@tiptap/extension-text-align';
 import { updateCapituloConteudo, createMencao } from '@/lib/actions';
 import { debounce } from 'lodash';
 import { useCallback, useEffect, useState } from 'react';
@@ -19,19 +20,15 @@ export default function EditorTiptap({ capituloId, novelId, initialContent, onWo
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
-  // Importante: Só renderizar o editor no cliente
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Função para contar palavras corretamente (suporta acentos, apóstrofos, números)
   const countWords = useCallback((text: string): number => {
-    // Regex que captura palavras com letras (com acentos), números e apóstrofos
     const matches = text.match(/[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)?/gu);
     return matches ? matches.length : 0;
   }, []);
 
-  // Função para extrair menções do conteúdo
   const extractMentions = useCallback((content: any, chapterId: number, novelIdParam: number) => {
     if (!content || !content.content) return [];
     
@@ -50,7 +47,6 @@ export default function EditorTiptap({ capituloId, novelId, initialContent, onWo
     
     const traverse = (node: any) => {
       if (node.type === 'text' && node.text) {
-        // Procurar por padrões [[TIPO:ID|NOME]]
         const regex = /\[\[([A-Z]+):(\d+)\|([^\]]+)\]\]/g;
         let match;
         while ((match = regex.exec(node.text)) !== null) {
@@ -87,7 +83,6 @@ export default function EditorTiptap({ capituloId, novelId, initialContent, onWo
       try {
         await updateCapituloConteudo(capituloId, content, wordCount);
         
-        // Se tiver novelId, extrair e salvar menções
         if (novelId) {
           const mentions = extractMentions(content, capituloId, novelId);
           for (const mention of mentions) {
@@ -102,7 +97,7 @@ export default function EditorTiptap({ capituloId, novelId, initialContent, onWo
         setSaving(false);
       }
       if (onWordCountChange) onWordCountChange(wordCount);
-    }, 1500), // Aumentei para 1.5 segundos para evitar muitas chamadas
+    }, 1500),
     [capituloId, novelId, onWordCountChange, extractMentions]
   );
 
@@ -112,9 +107,12 @@ export default function EditorTiptap({ capituloId, novelId, initialContent, onWo
       Placeholder.configure({
         placeholder: 'Escreva seu capítulo aqui... Comece com uma cena forte! ✍️\n\n💡 Dica: Clique nos personagens ou itens do grimório na barra lateral para inserir referências rapidamente.',
       }),
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
+        alignments: ['left', 'center', 'right', 'justify'],
+      }),
     ],
     content: initialContent || { type: "doc", content: [{ type: "paragraph", content: [] }] },
-    // CORREÇÃO: Adicionar immediatelyRender: false para evitar hidratação
     immediatelyRender: false,
     editorProps: {
       attributes: {
@@ -129,19 +127,13 @@ export default function EditorTiptap({ capituloId, novelId, initialContent, onWo
     },
   });
 
-  // Escutar eventos de menção
   useEffect(() => {
     const handleInsertMention = (event: CustomEvent) => {
       const { type, id, name } = event.detail;
       if (editor) {
-        // Inserir a menção no formato [[TIPO:ID|NOME]]
         const mentionText = `[[${type.toUpperCase()}:${id}|${name}]]`;
         editor.commands.insertContent(mentionText);
         editor.commands.focus();
-        
-        // Pequeno feedback visual
-        const mentionElement = document.createElement('span');
-        mentionElement.className = 'text-blue-400 bg-blue-500/10 rounded px-1';
         console.log(`✅ Menção inserida: ${name}`);
       }
     };
@@ -153,7 +145,6 @@ export default function EditorTiptap({ capituloId, novelId, initialContent, onWo
     };
   }, [editor]);
 
-  // Barra de ferramentas completa
   const ToolbarButton = ({ onClick, children, active, disabled, title }: { onClick: () => void; children: React.ReactNode; active?: boolean; disabled?: boolean; title?: string }) => (
     <button
       onClick={onClick}
@@ -171,7 +162,6 @@ export default function EditorTiptap({ capituloId, novelId, initialContent, onWo
     </button>
   );
 
-  // Não renderizar nada no servidor para evitar hidratação
   if (!mounted) {
     return (
       <div className="min-h-[60vh] bg-slate-900/50 rounded-xl border border-slate-800 flex items-center justify-center">
@@ -187,20 +177,61 @@ export default function EditorTiptap({ capituloId, novelId, initialContent, onWo
     <div className="space-y-4">
       {/* Toolbar */}
       <div className="flex flex-wrap gap-2 p-3 bg-slate-900 border border-slate-800 rounded-xl sticky top-0 z-10 backdrop-blur-sm">
+        {/* Formatação básica */}
         <ToolbarButton onClick={() => editor?.chain().focus().toggleBold().run()} active={editor?.isActive('bold')} title="Negrito (Ctrl+B)">
           <strong>N</strong>
         </ToolbarButton>
         <ToolbarButton onClick={() => editor?.chain().focus().toggleItalic().run()} active={editor?.isActive('italic')} title="Itálico (Ctrl+I)">
           <em>I</em>
         </ToolbarButton>
+        
         <div className="w-px h-8 bg-slate-700 mx-1" />
+        
+        {/* Títulos */}
         <ToolbarButton onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} active={editor?.isActive('heading', { level: 1 })} title="Título 1">
           H1
         </ToolbarButton>
         <ToolbarButton onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} active={editor?.isActive('heading', { level: 2 })} title="Título 2">
           H2
         </ToolbarButton>
+        
         <div className="w-px h-8 bg-slate-700 mx-1" />
+        
+        {/* Alinhamento de texto - NOVIDADE! */}
+        <ToolbarButton onClick={() => editor?.chain().focus().setTextAlign('left').run()} active={editor?.isActive({ textAlign: 'left' })} title="Alinhar à esquerda">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="12" x2="15" y2="12"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </ToolbarButton>
+        <ToolbarButton onClick={() => editor?.chain().focus().setTextAlign('center').run()} active={editor?.isActive({ textAlign: 'center' })} title="Centralizar">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </ToolbarButton>
+        <ToolbarButton onClick={() => editor?.chain().focus().setTextAlign('right').run()} active={editor?.isActive({ textAlign: 'right' })} title="Alinhar à direita">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="9" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </ToolbarButton>
+        <ToolbarButton onClick={() => editor?.chain().focus().setTextAlign('justify').run()} active={editor?.isActive({ textAlign: 'justify' })} title="Justificar">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+            <line x1="5" y1="6" x2="5" y2="18"/>
+            <line x1="19" y1="6" x2="19" y2="18"/>
+          </svg>
+        </ToolbarButton>
+        
+        <div className="w-px h-8 bg-slate-700 mx-1" />
+        
+        {/* Listas */}
         <ToolbarButton onClick={() => editor?.chain().focus().toggleBulletList().run()} active={editor?.isActive('bulletList')} title="Lista com marcadores">
           • Lista
         </ToolbarButton>
@@ -210,7 +241,10 @@ export default function EditorTiptap({ capituloId, novelId, initialContent, onWo
         <ToolbarButton onClick={() => editor?.chain().focus().toggleBlockquote().run()} active={editor?.isActive('blockquote')} title="Citação">
           ❝ Citação
         </ToolbarButton>
+        
         <div className="w-px h-8 bg-slate-700 mx-1" />
+        
+        {/* Desfazer/Refazer */}
         <ToolbarButton onClick={() => editor?.chain().focus().undo().run()} disabled={!editor?.can().undo()} title="Desfazer (Ctrl+Z)">
           ↩️ Desfazer
         </ToolbarButton>
