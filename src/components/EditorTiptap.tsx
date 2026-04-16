@@ -51,10 +51,10 @@ export default function EditorTiptap({ capituloId, novelId, initialContent, onWo
       Placeholder.configure({
         placeholder: 'Escreva seu capítulo aqui... Comece com uma cena forte! ✍️\n\n💡 Dica: Clique nos personagens ou itens do grimório na barra lateral para inserir referências rapidamente.',
       }),
-      TextAlign.configure({
-        types: ['heading', 'paragraph'],
-        alignments: ['left', 'center', 'right', 'justify'],
-      }),
+      //TextAlign.configure({
+        //types: ['heading', 'paragraph'],
+       // alignments: ['left', 'center', 'right', 'justify'],
+     // }),
     ],
     content: initialContent || { type: "doc", content: [{ type: "paragraph", content: [] }] },
     immediatelyRender: false,
