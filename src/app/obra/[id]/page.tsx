@@ -1,20 +1,24 @@
 import { prisma } from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { NovelStatusSelect } from "@/components/NovelStatusSelect";
+import { NovelMetaInput } from "@/components/NovelMetaInput";
 import Link from "next/link";
 import {
   PenTool, ArrowLeft, Users, Book, ScrollText,
-  Clock, Plus, Trash2, Star, BarChart3,
+  Clock, Plus, Trash2, Star, BarChart3, Edit2, Target, 
+  TrendingUp, Zap, AlertCircle, CheckCircle, Calendar,
+  Hash, Link as LinkIcon, Save, X, Search, Filter
 } from "lucide-react";
 
 type PageProps = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; edit?: string }>;
 };
 
 export default async function ObraPage({ params, searchParams }: PageProps) {
   const { id } = await params;
-  const { tab = "overview" } = await searchParams;
+  const { tab = "overview", edit } = await searchParams;
   const novelId = parseInt(id);
 
   if (isNaN(novelId)) notFound();
@@ -26,12 +30,95 @@ export default async function ObraPage({ params, searchParams }: PageProps) {
       personagens: { orderBy: { data_criacao: "desc" } },
       grimorio: { orderBy: { id: "desc" } },
       timeline: { orderBy: { capitulo_estimado: "asc" } },
+      capitulos: {
+        orderBy: { ordem: "asc" },
+        select: { id: true, titulo: true, ordem: true, palavras_contagem: true, status: true }
+      }
     },
   });
 
   if (!novel) notFound();
 
-  // ── Server Actions ──────────────────────────────────────────────────────────
+  // Buscar estatísticas avançadas
+  const totalPalavras = novel.capitulos.reduce((sum, cap) => sum + (cap.palavras_contagem || 0), 0);
+  const mediaPalavras = novel.capitulos.length > 0 ? Math.floor(totalPalavras / novel.capitulos.length) : 0;
+  const capitulosPublicados = novel.capitulos.filter(c => c.status === "Publicado").length;
+  const progressoReal = novel.capitulos_estimados && novel.capitulos_estimados > 0 
+    ? Math.floor((novel.capitulos.length / novel.capitulos_estimados) * 100)
+    : novel.progresso_total || 0;
+
+  // ── Server Actions Melhoradas ──────────────────────────────────────────
+
+  async function updateNovelStatus(formData: FormData) {
+    "use server";
+    const status = formData.get("status") as string;
+    await prisma.novels.update({
+      where: { id: novelId },
+      data: { status }
+    });
+    revalidatePath(`/obra/${novelId}`);
+    redirect(`/obra/${novelId}?tab=${tab}`);
+  }
+
+  async function updateNovelMeta(formData: FormData) {
+    "use server";
+    const capitulosEstimados = parseInt(formData.get("capitulos_estimados") as string);
+    await prisma.novels.update({
+      where: { id: novelId },
+      data: { capitulos_estimados: capitulosEstimados || 0 }
+    });
+    revalidatePath(`/obra/${novelId}`);
+    redirect(`/obra/${novelId}?tab=${tab}`);
+  }
+
+  async function updatePersonagem(formData: FormData) {
+    "use server";
+    const id = parseInt(formData.get("id") as string);
+    await prisma.personagens.update({
+      where: { id },
+      data: {
+        nome: formData.get("nome") as string,
+        papel: (formData.get("papel") as string) || null,
+        objetivo_neste_volume: (formData.get("objetivo") as string) || null,
+        descricao_fisica: (formData.get("descricao_fisica") as string) || null,
+        personalidade: (formData.get("personalidade") as string) || null,
+      }
+    });
+    revalidatePath(`/obra/${novelId}`);
+    redirect(`/obra/${novelId}?tab=personagens`);
+  }
+
+  async function updateGrimorio(formData: FormData) {
+    "use server";
+    const id = parseInt(formData.get("id") as string);
+    await prisma.grimorio.update({
+      where: { id },
+      data: {
+        titulo: formData.get("titulo") as string,
+        categoria: (formData.get("categoria") as string) || null,
+        conteudo: (formData.get("conteudo") as string) || null,
+      }
+    });
+    revalidatePath(`/obra/${novelId}`);
+    redirect(`/obra/${novelId}?tab=grimorio`);
+  }
+
+  async function updateTimeline(formData: FormData) {
+    "use server";
+    const id = parseInt(formData.get("id") as string);
+    await prisma.timeline.update({
+      where: { id },
+      data: {
+        evento_nome: formData.get("evento_nome") as string,
+        descricao: (formData.get("descricao") as string) || null,
+        capitulo_estimado: parseInt(formData.get("capitulo_estimado") as string) || null,
+        importancia: parseInt(formData.get("importancia") as string),
+        concluido: formData.get("concluido") === "true",
+      }
+    });
+    revalidatePath(`/obra/${novelId}`);
+    redirect(`/obra/${novelId}?tab=timeline`);
+  }
 
   async function createPersonagem(formData: FormData) {
     "use server";
@@ -107,12 +194,15 @@ export default async function ObraPage({ params, searchParams }: PageProps) {
   const tabs = [
     { key: "overview",    label: "Visão Geral",  icon: BarChart3,   count: null },
     { key: "personagens", label: "Personagens",  icon: Users,       count: novel._count.personagens },
-    { key: "grimorio",    label: "Grimório",      icon: ScrollText,  count: novel._count.grimorio },
-    { key: "timeline",    label: "Timeline",      icon: Clock,       count: novel._count.timeline },
+    { key: "grimorio",    label: "Grimório",     icon: ScrollText,  count: novel._count.grimorio },
+    { key: "timeline",    label: "Timeline",     icon: Clock,       count: novel._count.timeline },
+    { key: "capitulos",   label: "Capítulos",    icon: Book,        count: novel._count.capitulos },
+    { key: "relacoes",    label: "Relações",     icon: Hash,        count: null },
   ];
 
   const papeis = ["Protagonista", "Antagonista", "Aliado", "Rival", "Mentor", "Coadjuvante", "Neutro"];
   const categorias = ["Local", "Sistema de Magia", "Organização", "Item", "Evento", "Lore", "Outro"];
+  const statusOptions = ["Em Planejamento", "Ativa", "Hiato", "Concluída"];
 
   const papelColor: Record<string, string> = {
     Protagonista:  "text-yellow-400 bg-yellow-500/10 border-yellow-500/30",
@@ -134,7 +224,6 @@ export default async function ObraPage({ params, searchParams }: PageProps) {
     Outro:              "text-slate-400 bg-slate-500/10 border-slate-500/30",
   };
 
-  // ── Field styles (reutilizável) ───────────────────────────────────────────
   const field =
     "w-full bg-slate-950 border border-slate-700/80 rounded-xl px-4 py-2.5 text-sm outline-none placeholder:text-slate-600 transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10";
 
@@ -152,7 +241,7 @@ export default async function ObraPage({ params, searchParams }: PageProps) {
         />
       </div>
 
-      {/* ── Top Bar ── */}
+      {/* ── Top Bar Melhorada ── */}
       <nav className="border-b border-slate-800/70 bg-slate-950/80 backdrop-blur-md sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-6 py-3.5 flex items-center justify-between">
           <Link
@@ -162,41 +251,54 @@ export default async function ObraPage({ params, searchParams }: PageProps) {
             <ArrowLeft size={15} className="group-hover:-translate-x-0.5 transition-transform" />
             Dashboard
           </Link>
-          <Link
-            href={`/escrita/${novel.id}`}
-            className="bg-blue-600 hover:bg-blue-500 active:scale-95 px-5 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-blue-950/50"
-          >
-            <PenTool size={14} /> Modo Foco
-          </Link>
+          <div className="flex items-center gap-3">
+<NovelStatusSelect 
+  currentStatus={novel.status || "Em Planejamento"} 
+  novelId={novel.id} 
+/>
+            <Link
+              href={`/escrita/${novel.id}`}
+              className="bg-blue-600 hover:bg-blue-500 active:scale-95 px-5 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-blue-950/50"
+            >
+              <PenTool size={14} /> Modo Foco
+            </Link>
+          </div>
         </div>
       </nav>
 
       <div className="relative max-w-7xl mx-auto px-6 lg:px-8 py-10">
-        {/* ── Novel Title ── */}
+        {/* ── Novel Header com Edição ── */}
         <div className="mb-10">
-          <h1 className="text-5xl lg:text-6xl font-black tracking-tight mb-3 leading-none"
-            style={{
-              background: "linear-gradient(135deg, #60a5fa 0%, #c084fc 60%, #60a5fa 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
-            {novel.titulo}
-          </h1>
-          <div className="flex flex-wrap gap-2 mb-3">
-            <span className="text-xs bg-blue-500/10 border border-blue-500/20 text-blue-400 px-3 py-1 rounded-full font-bold uppercase tracking-wider">
-              {novel.genero || "Sem gênero"}
-            </span>
-            <span className="text-xs bg-slate-800 border border-slate-700 text-slate-400 px-3 py-1 rounded-full font-bold uppercase tracking-wider">
-              {novel.status || "Em Planejamento"}
-            </span>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <h1 className="text-5xl lg:text-6xl font-black tracking-tight mb-3 leading-none"
+                style={{
+                  background: "linear-gradient(135deg, #60a5fa 0%, #c084fc 60%, #60a5fa 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                }}
+              >
+                {novel.titulo}
+              </h1>
+              <div className="flex flex-wrap gap-2 mb-3">
+                <span className="text-xs bg-blue-500/10 border border-blue-500/20 text-blue-400 px-3 py-1 rounded-full font-bold uppercase tracking-wider">
+                  {novel.genero || "Sem gênero"}
+                </span>
+                <div className="flex items-center gap-2">
+<NovelMetaInput 
+  currentValue={novel.capitulos_estimados || 0} 
+  novelId={novel.id} 
+/>
+                </div>
+              </div>
+              {novel.sinopse && (
+                <p className="text-slate-400 max-w-3xl leading-relaxed">{novel.sinopse}</p>
+              )}
+            </div>
           </div>
-          {novel.sinopse && (
-            <p className="text-slate-400 max-w-3xl leading-relaxed">{novel.sinopse}</p>
-          )}
         </div>
 
-        {/* ── Tab Navigation ── */}
+        {/* ── Tab Navigation Melhorada ── */}
         <div className="flex gap-1 bg-slate-900/50 border border-slate-800 rounded-xl p-1 w-fit mb-10 overflow-x-auto">
           {tabs.map(({ key, label, icon: Icon, count }) => (
             <Link
@@ -210,7 +312,7 @@ export default async function ObraPage({ params, searchParams }: PageProps) {
             >
               <Icon size={14} />
               {label}
-              {count !== null && (
+              {count !== null && count > 0 && (
                 <span
                   className={`text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold ${
                     tab === key ? "bg-blue-500/60" : "bg-slate-800"
@@ -224,58 +326,92 @@ export default async function ObraPage({ params, searchParams }: PageProps) {
         </div>
 
         {/* ════════════════════════════════════════════════════════════════════
-            TAB: VISÃO GERAL
+            TAB: VISÃO GERAL (MELHORADA)
         ════════════════════════════════════════════════════════════════════ */}
         {tab === "overview" && (
           <div className="space-y-6">
-            {/* Stats */}
+            {/* Stats Avançados */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
-                { label: "Capítulos",   value: novel._count.capitulos,   icon: Book,       color: "text-purple-400", border: "border-purple-500/20", bg: "from-purple-900/20" },
-                { label: "Personagens", value: novel._count.personagens, icon: Users,      color: "text-blue-400",   border: "border-blue-500/20",   bg: "from-blue-900/20" },
-                { label: "Grimório",    value: novel._count.grimorio,    icon: ScrollText, color: "text-emerald-400",border: "border-emerald-500/20",bg: "from-emerald-900/20" },
-                { label: "Eventos",     value: novel._count.timeline,    icon: Clock,      color: "text-amber-400",  border: "border-amber-500/20",  bg: "from-amber-900/20" },
-              ].map(({ label, value, icon: Icon, color, border, bg }) => (
-                <div key={label} className={`bg-gradient-to-br ${bg} to-transparent border ${border} rounded-2xl p-5`}>
+                { label: "Capítulos", value: novel._count.capitulos, icon: Book, color: "text-purple-400", suffix: "", detail: `${capitulosPublicados} publicados` },
+                { label: "Palavras", value: totalPalavras.toLocaleString("pt-BR"), icon: TrendingUp, color: "text-blue-400", suffix: "", detail: `média ${mediaPalavras.toLocaleString("pt-BR")}/cap` },
+                { label: "Personagens", value: novel._count.personagens, icon: Users, color: "text-emerald-400", suffix: "", detail: "no total" },
+                { label: "Grimório", value: novel._count.grimorio, icon: ScrollText, color: "text-amber-400", suffix: "", detail: "itens registrados" },
+              ].map(({ label, value, icon: Icon, color, suffix, detail }) => (
+                <div key={label} className="bg-gradient-to-br from-slate-900/40 to-transparent border border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition-all">
                   <Icon className={`${color} mb-3`} size={22} />
-                  <p className="text-4xl font-black text-white mb-0.5">{value}</p>
+                  <p className="text-3xl font-black text-white mb-0.5">{value}{suffix}</p>
                   <p className="text-xs text-slate-500 uppercase tracking-widest">{label}</p>
+                  <p className="text-[9px] text-slate-600 mt-1">{detail}</p>
                 </div>
               ))}
             </div>
 
-            {/* Progress */}
-            <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-slate-200">Progresso da Obra</h3>
-                <span className="text-2xl font-black text-blue-400">{novel.progresso_total || 0}%</span>
+            {/* Progresso Detalhado */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-bold text-slate-200 flex items-center gap-2">
+                    <Target size={16} className="text-blue-400" />
+                    Progresso da Obra
+                  </h3>
+                  <span className="text-2xl font-black text-blue-400">{progressoReal}%</span>
+                </div>
+                <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden mb-2">
+                  <div
+                    className="bg-gradient-to-r from-blue-500 to-purple-500 h-full rounded-full transition-all duration-700"
+                    style={{ width: `${progressoReal}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-[11px] text-slate-600">
+                  <span>{novel.capitulos.length} capítulos escritos</span>
+                  <span>{novel.capitulos_estimados || 0} capítulos planejados</span>
+                </div>
               </div>
-              <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                <div
-                  className="bg-gradient-to-r from-blue-500 to-purple-500 h-full rounded-full transition-all duration-700"
-                  style={{ width: `${novel.progresso_total || 0}%` }}
-                />
+
+              <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6">
+                <h3 className="font-bold text-slate-200 mb-4 flex items-center gap-2">
+                  <Zap size={16} className="text-yellow-400" />
+                  Status da Escrita
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-slate-400">Rascunhos</span>
+                    <span className="text-lg font-bold text-yellow-400">
+                      {novel.capitulos.filter(c => c.status === "Rascunho").length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-slate-400">Em Revisão</span>
+                    <span className="text-lg font-bold text-orange-400">
+                      {novel.capitulos.filter(c => c.status === "Revisão").length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-slate-400">Publicados</span>
+                    <span className="text-lg font-bold text-emerald-400">{capitulosPublicados}</span>
+                  </div>
+                </div>
               </div>
-              <p className="text-[11px] text-slate-600 mt-2">
-                {novel.capitulos_estimados
-                  ? `Meta: ${novel.capitulos_estimados} capítulos estimados`
-                  : "Sem meta de capítulos definida"}
-              </p>
             </div>
 
-            {/* Quick access */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* Quick access com estatísticas */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               {[
-                { tab: "personagens", label: "Gerenciar Personagens", icon: Users,      grad: "from-blue-600 to-blue-700" },
-                { tab: "grimorio",    label: "Acessar Grimório",       icon: ScrollText, grad: "from-emerald-700 to-teal-700" },
-                { tab: "timeline",    label: "Ver Timeline",           icon: Clock,      grad: "from-amber-600 to-orange-700" },
-              ].map(({ tab: t, label, icon: Icon, grad }) => (
+                { tab: "personagens", label: "Personagens", icon: Users, grad: "from-blue-600 to-blue-700", count: novel._count.personagens },
+                { tab: "grimorio", label: "Grimório", icon: ScrollText, grad: "from-emerald-700 to-teal-700", count: novel._count.grimorio },
+                { tab: "timeline", label: "Timeline", icon: Clock, grad: "from-amber-600 to-orange-700", count: novel._count.timeline },
+                { tab: "capitulos", label: "Capítulos", icon: Book, grad: "from-purple-600 to-pink-700", count: novel._count.capitulos },
+              ].map(({ tab: t, label, icon: Icon, grad, count }) => (
                 <Link
                   key={t}
                   href={`/obra/${novelId}?tab=${t}`}
-                  className={`bg-gradient-to-br ${grad} hover:opacity-90 active:scale-[0.98] p-4 rounded-xl font-semibold text-sm flex items-center gap-2.5 transition-all shadow-lg`}
+                  className={`bg-gradient-to-br ${grad} hover:opacity-90 active:scale-[0.98] p-4 rounded-xl font-semibold text-sm flex items-center justify-between transition-all shadow-lg`}
                 >
-                  <Icon size={16} /> {label}
+                  <div className="flex items-center gap-2.5">
+                    <Icon size={16} /> {label}
+                  </div>
+                  <span className="text-lg font-black">{count}</span>
                 </Link>
               ))}
             </div>
@@ -283,7 +419,7 @@ export default async function ObraPage({ params, searchParams }: PageProps) {
         )}
 
         {/* ════════════════════════════════════════════════════════════════════
-            TAB: PERSONAGENS
+            TAB: PERSONAGENS (COM EDIÇÃO)
         ════════════════════════════════════════════════════════════════════ */}
         {tab === "personagens" && (
           <div className="space-y-6">
@@ -335,7 +471,7 @@ export default async function ObraPage({ params, searchParams }: PageProps) {
               </form>
             </div>
 
-            {/* Characters list */}
+            {/* Characters list com edição inline */}
             {novel.personagens.length === 0 ? (
               <div className="text-center py-20 border border-dashed border-slate-800 rounded-2xl">
                 <Users size={36} className="text-slate-700 mx-auto mb-3" />
@@ -348,51 +484,69 @@ export default async function ObraPage({ params, searchParams }: PageProps) {
                     key={p.id}
                     className="group relative bg-slate-900/40 border border-slate-800 rounded-2xl p-5 hover:border-slate-600/80 transition-all"
                   >
-                    <form
-                      action={deletePersonagem}
-                      className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <input type="hidden" name="id" value={p.id} />
-                      <button className="text-slate-600 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-500/10 transition-all">
-                        <Trash2 size={13} />
-                      </button>
-                    </form>
+                    {edit === `personagem-${p.id}` ? (
+                      <form action={updatePersonagem} className="space-y-3">
+                        <input type="hidden" name="id" value={p.id} />
+                        <input name="nome" defaultValue={p.nome} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm" required />
+                        <select name="papel" defaultValue={p.papel || ""} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm">
+                          <option value="">Selecionar papel...</option>
+                          {papeis.map(role => <option key={role} value={role}>{role}</option>)}
+                        </select>
+                        <input name="objetivo" defaultValue={p.objetivo_neste_volume || ""} placeholder="Objetivo" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
+                        <input name="descricao_fisica" defaultValue={p.descricao_fisica || ""} placeholder="Descrição física" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
+                        <textarea name="personalidade" defaultValue={p.personalidade || ""} placeholder="Personalidade" rows={2} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm resize-none" />
+                        <div className="flex gap-2">
+                          <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-500 py-2 rounded-lg text-sm font-medium transition-all">Salvar</button>
+                          <Link href={`/obra/${novelId}?tab=personagens`} className="flex-1 bg-slate-800 hover:bg-slate-700 py-2 rounded-lg text-sm font-medium text-center transition-all">Cancelar</Link>
+                        </div>
+                      </form>
+                    ) : (
+                      <>
+                        <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Link href={`/obra/${novelId}?tab=personagens&edit=personagem-${p.id}`} className="text-slate-600 hover:text-blue-400 p-1.5 rounded-lg hover:bg-blue-500/10 transition-all">
+                            <Edit2 size={13} />
+                          </Link>
+                          <form action={deletePersonagem}>
+                            <input type="hidden" name="id" value={p.id} />
+                            <button className="text-slate-600 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-500/10 transition-all">
+                              <Trash2 size={13} />
+                            </button>
+                          </form>
+                        </div>
 
-                    <div className="flex items-start gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-sm font-black flex-shrink-0 shadow-md">
-                        {p.nome[0].toUpperCase()}
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-white leading-tight">{p.nome}</h4>
-                        {p.papel && (
-                          <span
-                            className={`text-[10px] border px-2 py-0.5 rounded-full uppercase tracking-wider mt-1 inline-block ${
-                              papelColor[p.papel] || papelColor.Neutro
-                            }`}
-                          >
-                            {p.papel}
-                          </span>
+                        <div className="flex items-start gap-3 mb-4">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-sm font-black flex-shrink-0 shadow-md">
+                            {p.nome[0].toUpperCase()}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-white leading-tight">{p.nome}</h4>
+                            {p.papel && (
+                              <span className={`text-[10px] border px-2 py-0.5 rounded-full uppercase tracking-wider mt-1 inline-block ${papelColor[p.papel] || papelColor.Neutro}`}>
+                                {p.papel}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {p.objetivo_neste_volume && (
+                          <div className="mb-3 bg-slate-950/50 rounded-xl p-3">
+                            <p className="text-[9px] text-slate-600 uppercase tracking-widest mb-1">Objetivo</p>
+                            <p className="text-xs text-slate-300 line-clamp-2">{p.objetivo_neste_volume}</p>
+                          </div>
                         )}
-                      </div>
-                    </div>
-
-                    {p.objetivo_neste_volume && (
-                      <div className="mb-3 bg-slate-950/50 rounded-xl p-3">
-                        <p className="text-[9px] text-slate-600 uppercase tracking-widest mb-1">Objetivo</p>
-                        <p className="text-xs text-slate-300 line-clamp-2">{p.objetivo_neste_volume}</p>
-                      </div>
-                    )}
-                    {p.descricao_fisica && (
-                      <div className="mb-2">
-                        <p className="text-[9px] text-slate-600 uppercase tracking-widest mb-0.5">Aparência</p>
-                        <p className="text-xs text-slate-400 line-clamp-2">{p.descricao_fisica}</p>
-                      </div>
-                    )}
-                    {p.personalidade && (
-                      <div>
-                        <p className="text-[9px] text-slate-600 uppercase tracking-widest mb-0.5">Personalidade</p>
-                        <p className="text-xs text-slate-400 line-clamp-2">{p.personalidade}</p>
-                      </div>
+                        {p.descricao_fisica && (
+                          <div className="mb-2">
+                            <p className="text-[9px] text-slate-600 uppercase tracking-widest mb-0.5">Aparência</p>
+                            <p className="text-xs text-slate-400 line-clamp-2">{p.descricao_fisica}</p>
+                          </div>
+                        )}
+                        {p.personalidade && (
+                          <div>
+                            <p className="text-[9px] text-slate-600 uppercase tracking-widest mb-0.5">Personalidade</p>
+                            <p className="text-xs text-slate-400 line-clamp-2">{p.personalidade}</p>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 ))}
@@ -402,7 +556,7 @@ export default async function ObraPage({ params, searchParams }: PageProps) {
         )}
 
         {/* ════════════════════════════════════════════════════════════════════
-            TAB: GRIMÓRIO
+            TAB: GRIMÓRIO (COM EDIÇÃO)
         ════════════════════════════════════════════════════════════════════ */}
         {tab === "grimorio" && (
           <div className="space-y-6">
@@ -430,7 +584,7 @@ export default async function ObraPage({ params, searchParams }: PageProps) {
                   <label className="text-[10px] text-slate-500 block mb-1.5 uppercase tracking-widest">Primeira Menção (Cap.)</label>
                   <input name="primeira_mencao" type="number" min={1} placeholder="Nº do capítulo" className={field} />
                 </div>
-                <div className="md:col-span-2 row-span-1">
+                <div className="md:col-span-3">
                   <label className="text-[10px] text-slate-500 block mb-1.5 uppercase tracking-widest">Descrição / Conteúdo</label>
                   <textarea
                     name="conteudo"
@@ -450,7 +604,7 @@ export default async function ObraPage({ params, searchParams }: PageProps) {
               </form>
             </div>
 
-            {/* Entries */}
+            {/* Entries com edição inline */}
             {novel.grimorio.length === 0 ? (
               <div className="text-center py-20 border border-dashed border-slate-800 rounded-2xl">
                 <ScrollText size={36} className="text-slate-700 mx-auto mb-3" />
@@ -463,37 +617,51 @@ export default async function ObraPage({ params, searchParams }: PageProps) {
                     key={entry.id}
                     className="group flex gap-4 bg-slate-900/40 border border-slate-800 rounded-xl p-4 hover:border-slate-600/80 transition-all"
                   >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                        <h4 className="font-bold text-white">{entry.titulo}</h4>
-                        {entry.categoria && (
-                          <span
-                            className={`text-[10px] border px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                              catColor[entry.categoria] || catColor.Outro
-                            }`}
-                          >
-                            {entry.categoria}
-                          </span>
-                        )}
-                        {entry.primeira_mencao_capitulo && (
-                          <span className="text-[10px] text-slate-600">
-                            → Cap. {entry.primeira_mencao_capitulo}
-                          </span>
-                        )}
-                      </div>
-                      {entry.conteudo && (
-                        <p className="text-sm text-slate-400 line-clamp-2 leading-relaxed">{entry.conteudo}</p>
-                      )}
-                    </div>
-                    <form
-                      action={deleteGrimorio}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 self-center"
-                    >
-                      <input type="hidden" name="id" value={entry.id} />
-                      <button className="text-slate-600 hover:text-red-400 p-2 rounded-lg hover:bg-red-500/10 transition-all">
-                        <Trash2 size={13} />
-                      </button>
-                    </form>
+                    {edit === `grimorio-${entry.id}` ? (
+                      <form action={updateGrimorio} className="flex-1">
+                        <input type="hidden" name="id" value={entry.id} />
+                        <input name="titulo" defaultValue={entry.titulo} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm mb-2" required />
+                        <select name="categoria" defaultValue={entry.categoria || ""} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm mb-2">
+                          <option value="">Selecionar categoria...</option>
+                          {categorias.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <textarea name="conteudo" defaultValue={entry.conteudo || ""} rows={3} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm resize-none mb-2" />
+                        <div className="flex gap-2">
+                          <button type="submit" className="flex-1 bg-emerald-600 hover:bg-emerald-500 py-2 rounded-lg text-sm font-medium transition-all">Salvar</button>
+                          <Link href={`/obra/${novelId}?tab=grimorio`} className="flex-1 bg-slate-800 hover:bg-slate-700 py-2 rounded-lg text-sm font-medium text-center transition-all">Cancelar</Link>
+                        </div>
+                      </form>
+                    ) : (
+                      <>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                            <h4 className="font-bold text-white">{entry.titulo}</h4>
+                            {entry.categoria && (
+                              <span className={`text-[10px] border px-2 py-0.5 rounded-full uppercase tracking-wider ${catColor[entry.categoria] || catColor.Outro}`}>
+                                {entry.categoria}
+                              </span>
+                            )}
+                            {entry.primeira_mencao_capitulo && (
+                              <span className="text-[10px] text-slate-600">→ Cap. {entry.primeira_mencao_capitulo}</span>
+                            )}
+                          </div>
+                          {entry.conteudo && (
+                            <p className="text-sm text-slate-400 line-clamp-2 leading-relaxed">{entry.conteudo}</p>
+                          )}
+                        </div>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 self-center">
+                          <Link href={`/obra/${novelId}?tab=grimorio&edit=grimorio-${entry.id}`} className="text-slate-600 hover:text-blue-400 p-1.5 rounded-lg hover:bg-blue-500/10 transition-all">
+                            <Edit2 size={13} />
+                          </Link>
+                          <form action={deleteGrimorio}>
+                            <input type="hidden" name="id" value={entry.id} />
+                            <button className="text-slate-600 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-500/10 transition-all">
+                              <Trash2 size={13} />
+                            </button>
+                          </form>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
@@ -502,7 +670,7 @@ export default async function ObraPage({ params, searchParams }: PageProps) {
         )}
 
         {/* ════════════════════════════════════════════════════════════════════
-            TAB: TIMELINE
+            TAB: TIMELINE (COM EDIÇÃO E CHECKBOX)
         ════════════════════════════════════════════════════════════════════ */}
         {tab === "timeline" && (
           <div className="space-y-6">
@@ -517,12 +685,7 @@ export default async function ObraPage({ params, searchParams }: PageProps) {
               <form action={createTimeline} className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="md:col-span-2">
                   <label className="text-[10px] text-slate-500 block mb-1.5 uppercase tracking-widest">Nome do Evento *</label>
-                  <input
-                    name="evento_nome"
-                    required
-                    placeholder="Ex: Batalha do Norte, Traição revelada..."
-                    className={field}
-                  />
+                  <input name="evento_nome" required placeholder="Ex: Batalha do Norte, Traição revelada..." className={field} />
                 </div>
                 <div>
                   <label className="text-[10px] text-slate-500 block mb-1.5 uppercase tracking-widest">Capítulo Estimado</label>
@@ -530,12 +693,7 @@ export default async function ObraPage({ params, searchParams }: PageProps) {
                 </div>
                 <div className="md:col-span-2">
                   <label className="text-[10px] text-slate-500 block mb-1.5 uppercase tracking-widest">Descrição</label>
-                  <textarea
-                    name="descricao"
-                    placeholder="O que acontece, quem está envolvido, impacto..."
-                    rows={2}
-                    className={`${field} resize-none`}
-                  />
+                  <textarea name="descricao" placeholder="O que acontece, quem está envolvido, impacto..." rows={2} className={`${field} resize-none`} />
                 </div>
                 <div>
                   <label className="text-[10px] text-slate-500 block mb-1.5 uppercase tracking-widest">Importância</label>
@@ -546,17 +704,14 @@ export default async function ObraPage({ params, searchParams }: PageProps) {
                   </select>
                 </div>
                 <div className="md:col-span-3 flex justify-end">
-                  <button
-                    type="submit"
-                    className="bg-amber-700 hover:bg-amber-600 active:scale-95 px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2"
-                  >
+                  <button type="submit" className="bg-amber-700 hover:bg-amber-600 active:scale-95 px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2">
                     <Plus size={15} /> Adicionar Evento
                   </button>
                 </div>
               </form>
             </div>
 
-            {/* Timeline list */}
+            {/* Timeline list com edição inline e checkbox */}
             {novel.timeline.length === 0 ? (
               <div className="text-center py-20 border border-dashed border-slate-800 rounded-2xl">
                 <Clock size={36} className="text-slate-700 mx-auto mb-3" />
@@ -564,71 +719,204 @@ export default async function ObraPage({ params, searchParams }: PageProps) {
               </div>
             ) : (
               <div className="relative pl-2">
-                {/* Vertical line */}
                 <div className="absolute left-[30px] top-7 bottom-7 w-px bg-gradient-to-b from-slate-700 via-slate-700/50 to-transparent" />
-
                 <div className="space-y-3">
                   {novel.timeline.map((event) => {
                     const imp = event.importancia || 1;
-                    const dotStyle =
-                      imp === 3 ? "border-red-500 bg-red-950/70 shadow-red-900/50" :
-                      imp === 2 ? "border-amber-500 bg-amber-950/70 shadow-amber-900/50" :
-                                  "border-slate-600 bg-slate-900";
-                    const cardBorder =
-                      imp === 3 ? "border-red-500/20 hover:border-red-500/40" :
-                      imp === 2 ? "border-amber-500/15 hover:border-amber-500/30" :
-                                  "border-slate-800 hover:border-slate-600/80";
+                    const dotStyle = imp === 3 ? "border-red-500 bg-red-950/70 shadow-red-900/50" :
+                                      imp === 2 ? "border-amber-500 bg-amber-950/70 shadow-amber-900/50" :
+                                                  "border-slate-600 bg-slate-900";
                     const stars = "⭐".repeat(imp);
 
                     return (
                       <div key={event.id} className="group flex gap-4 items-start">
-                        {/* Node */}
-                        <div
-                          className={`w-[56px] h-[56px] rounded-full border-2 flex-shrink-0 flex flex-col items-center justify-center z-10 shadow-lg transition-all ${dotStyle}`}
-                        >
+                        <div className={`w-[56px] h-[56px] rounded-full border-2 flex-shrink-0 flex flex-col items-center justify-center z-10 shadow-lg transition-all ${dotStyle}`}>
                           {event.capitulo_estimado ? (
                             <>
                               <p className="text-[8px] text-slate-500 leading-none">CAP</p>
-                              <p className="text-sm font-black text-slate-200 leading-tight">
-                                {event.capitulo_estimado}
-                              </p>
+                              <p className="text-sm font-black text-slate-200 leading-tight">{event.capitulo_estimado}</p>
                             </>
                           ) : (
                             <span className="text-slate-600 text-xs">?</span>
                           )}
                         </div>
 
-                        {/* Card */}
-                        <div
-                          className={`flex-1 bg-slate-900/40 border rounded-xl p-4 transition-all ${cardBorder}`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h4 className="font-bold text-white">{event.evento_nome}</h4>
-                                <span className="text-xs">{stars}</span>
-                              </div>
-                              {event.descricao && (
-                                <p className="text-sm text-slate-400 leading-relaxed">{event.descricao}</p>
-                              )}
-                            </div>
-                            <form
-                              action={deleteTimeline}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                            >
+                        {edit === `timeline-${event.id}` ? (
+                          <div className="flex-1 bg-slate-900/40 border border-slate-800 rounded-xl p-4">
+                            <form action={updateTimeline} className="space-y-3">
                               <input type="hidden" name="id" value={event.id} />
-                              <button className="text-slate-600 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-500/10 transition-all">
-                                <Trash2 size={13} />
-                              </button>
+                              <input name="evento_nome" defaultValue={event.evento_nome} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm" required />
+                              <textarea name="descricao" defaultValue={event.descricao || ""} rows={2} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm resize-none" />
+                              <div className="grid grid-cols-2 gap-3">
+                                <input name="capitulo_estimado" type="number" defaultValue={event.capitulo_estimado || ""} placeholder="Capítulo" className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
+                                <select name="importancia" defaultValue={event.importancia || 1} className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm">
+                                  <option value="1">⭐ Menor</option>
+                                  <option value="2">⭐⭐ Moderado</option>
+                                  <option value="3">⭐⭐⭐ Crucial</option>
+                                </select>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <input type="checkbox" name="concluido" value="true" defaultChecked={event.concluido || false} id={`concluido-${event.id}`} />
+                                <label htmlFor={`concluido-${event.id}`} className="text-sm text-slate-400">Evento concluído</label>
+                              </div>
+                              <div className="flex gap-2">
+                                <button type="submit" className="flex-1 bg-amber-600 hover:bg-amber-500 py-2 rounded-lg text-sm font-medium transition-all">Salvar</button>
+                                <Link href={`/obra/${novelId}?tab=timeline`} className="flex-1 bg-slate-800 hover:bg-slate-700 py-2 rounded-lg text-sm font-medium text-center transition-all">Cancelar</Link>
+                              </div>
                             </form>
                           </div>
-                        </div>
+                        ) : (
+                          <div className={`flex-1 bg-slate-900/40 border rounded-xl p-4 transition-all ${event.concluido ? 'border-emerald-500/30 bg-emerald-950/20' : 'border-slate-800 hover:border-slate-600/80'}`}>
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h4 className={`font-bold ${event.concluido ? 'text-emerald-400 line-through' : 'text-white'}`}>{event.evento_nome}</h4>
+                                  <span className="text-xs">{stars}</span>
+                                  {event.concluido && <CheckCircle size={12} className="text-emerald-400" />}
+                                </div>
+                                {event.descricao && <p className="text-sm text-slate-400 leading-relaxed">{event.descricao}</p>}
+                              </div>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                <Link href={`/obra/${novelId}?tab=timeline&edit=timeline-${event.id}`} className="text-slate-600 hover:text-blue-400 p-1.5 rounded-lg hover:bg-blue-500/10 transition-all">
+                                  <Edit2 size={13} />
+                                </Link>
+                                <form action={deleteTimeline}>
+                                  <input type="hidden" name="id" value={event.id} />
+                                  <button className="text-slate-600 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-500/10 transition-all">
+                                    <Trash2 size={13} />
+                                  </button>
+                                </form>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════════
+            TAB: CAPÍTULOS (NOVA!)
+        ════════════════════════════════════════════════════════════════════ */}
+        {tab === "capitulos" && (
+          <div className="space-y-6">
+            <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6">
+              <h3 className="font-bold text-slate-200 mb-5 flex items-center gap-2 text-sm uppercase tracking-wider">
+                <Book size={16} />
+                Lista de Capítulos
+              </h3>
+              
+              {novel.capitulos.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-slate-500 text-sm">Nenhum capítulo criado ainda.</p>
+                  <Link href={`/escrita/${novel.id}`} className="inline-block mt-4 text-blue-400 hover:text-blue-300 text-sm">
+                    Comece a escrever agora →
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {novel.capitulos.map((cap, index) => {
+                    const statusColor = cap.status === "Publicado" ? "text-emerald-400" :
+                                       cap.status === "Revisão" ? "text-orange-400" :
+                                       "text-yellow-400";
+                    return (
+                      <Link
+                        key={cap.id}
+                        href={`/escrita/${novel.id}?capitulo=${cap.id}`}
+                        className="flex items-center justify-between p-4 bg-slate-950/50 rounded-xl hover:bg-slate-800/50 transition-all group"
+                      >
+                        <div className="flex items-center gap-4">
+                          <span className="text-2xl font-black text-slate-700 w-8">#{cap.ordem || index + 1}</span>
+                          <div>
+                            <h4 className="font-medium text-white group-hover:text-blue-400 transition-colors">{cap.titulo}</h4>
+                            <div className="flex items-center gap-3 mt-1">
+                              <span className={`text-[10px] ${statusColor}`}>{cap.status}</span>
+                              <span className="text-[10px] text-slate-600">{cap.palavras_contagem?.toLocaleString("pt-BR") || 0} palavras</span>
+                            </div>
+                          </div>
+                        </div>
+                        <PenTool size={14} className="text-slate-600 group-hover:text-blue-400 transition-colors" />
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════════
+            TAB: RELAÇÕES (NOVA!)
+        ════════════════════════════════════════════════════════════════════ */}
+        {tab === "relacoes" && (
+          <div className="space-y-6">
+            <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6">
+              <h3 className="font-bold text-slate-200 mb-2 flex items-center gap-2 text-sm uppercase tracking-wider">
+                <Hash size={16} />
+                Rede de Conexões
+              </h3>
+              <p className="text-xs text-slate-500 mb-6">
+                Visualize como personagens, locais e eventos se conectam através dos capítulos.
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Personagens mais mencionados */}
+                <div className="bg-slate-950/50 rounded-xl p-4">
+                  <h4 className="font-medium text-slate-300 mb-3 flex items-center gap-2">
+                    <Users size={14} className="text-blue-400" />
+                    Personagens
+                  </h4>
+                  <div className="space-y-2">
+                    {novel.personagens.slice(0, 5).map(p => (
+                      <div key={p.id} className="flex items-center justify-between text-sm">
+                        <span className="text-slate-400">{p.nome}</span>
+                        <span className="text-xs text-slate-600">{p.papel || "Sem papel"}</span>
+                      </div>
+                    ))}
+                    {novel.personagens.length === 0 && (
+                      <p className="text-slate-600 text-sm text-center py-4">Nenhum personagem ainda</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Categorias do Grimório */}
+                <div className="bg-slate-950/50 rounded-xl p-4">
+                  <h4 className="font-medium text-slate-300 mb-3 flex items-center gap-2">
+                    <ScrollText size={14} className="text-emerald-400" />
+                    Categorias do Grimório
+                  </h4>
+                  <div className="space-y-2">
+                    {Object.entries(
+                      novel.grimorio.reduce((acc, item) => {
+                        const cat = item.categoria || "Sem categoria";
+                        acc[cat] = (acc[cat] || 0) + 1;
+                        return acc;
+                      }, {} as Record<string, number>)
+                    ).slice(0, 5).map(([cat, count]) => (
+                      <div key={cat} className="flex items-center justify-between text-sm">
+                        <span className="text-slate-400">{cat}</span>
+                        <span className="text-xs text-slate-600">{count} itens</span>
+                      </div>
+                    ))}
+                    {novel.grimorio.length === 0 && (
+                      <p className="text-slate-600 text-sm text-center py-4">Nenhum item no grimório</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Dica */}
+              <div className="mt-6 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                <p className="text-xs text-blue-400 flex items-center gap-2">
+                  <Zap size={12} />
+                  💡 Dica: Use o editor para criar menções (@Personagem) e veja as conexões aparecerem aqui!
+                </p>
+              </div>
+            </div>
           </div>
         )}
       </div>

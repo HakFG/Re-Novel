@@ -1,19 +1,21 @@
 import { prisma } from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Users, ScrollText, Save, Plus, Pencil } from "lucide-react";
+import { ArrowLeft, Users, ScrollText, Plus, Pencil, X, Search, BookOpen } from "lucide-react";
 import EditorTiptap from "@/components/EditorTiptap";
 import ClientWrapper from "@/components/ClientWrapper";
+import TituloCapituloForm from "@/components/TituloCapituloForm";
+import StatusCapituloSelect from "@/components/StatusCapituloSelect";
 import { createCapitulo, getCapitulos } from "@/lib/actions";
 
 type PageProps = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ capitulo?: string }>;
+  searchParams: Promise<{ capitulo?: string; busca?: string }>;
 };
 
 export default async function EscritaPage({ params, searchParams }: PageProps) {
   const { id } = await params;
-  const { capitulo: capParam } = await searchParams;
+  const { capitulo: capParam, busca: buscaParam } = await searchParams;
   const novelId = parseInt(id);
   const capituloId = capParam ? parseInt(capParam) : null;
 
@@ -36,25 +38,54 @@ export default async function EscritaPage({ params, searchParams }: PageProps) {
 
   const capituloSelecionado = capituloAtual || capitulos[0] || null;
 
+  // Busca de personagens com filtro opcional
   const personagens = await prisma.personagens.findMany({
-    where: { novel_id: novelId },
+    where: { 
+      novel_id: novelId,
+      ...(buscaParam ? {
+        OR: [
+          { nome: { contains: buscaParam, mode: 'insensitive' } },
+          { papel: { contains: buscaParam, mode: 'insensitive' } }
+        ]
+      } : {})
+    },
     select: { id: true, nome: true, papel: true },
     orderBy: { nome: "asc" },
+    take: buscaParam ? 50 : 20,
   });
 
+  // Busca de grimório com filtro opcional
   const grimorioLocais = await prisma.grimorio.findMany({
-    where: { novel_id: novelId },
+    where: { 
+      novel_id: novelId,
+      ...(buscaParam ? {
+        OR: [
+          { titulo: { contains: buscaParam, mode: 'insensitive' } },
+          { categoria: { contains: buscaParam, mode: 'insensitive' } }
+        ]
+      } : {})
+    },
     select: { id: true, titulo: true, categoria: true },
     orderBy: { titulo: "asc" },
-    take: 20,
+    take: buscaParam ? 50 : 20,
   });
+
+  // Estatísticas avançadas dos capítulos
+  const estatisticas = {
+    totalPalavras: capitulos.reduce((a: number, c: any) => a + (c.palavras_contagem || 0), 0),
+    mediaPalavras: capitulos.length > 0 
+      ? Math.round(capitulos.reduce((a: number, c: any) => a + (c.palavras_contagem || 0), 0) / capitulos.length)
+      : 0,
+    maiorCapitulo: capitulos.reduce((max: any, c: any) => 
+      (c.palavras_contagem || 0) > (max?.palavras_contagem || 0) ? c : max, null),
+    rascunhos: capitulos.filter((c: any) => c.status === "Rascunho").length,
+    publicados: capitulos.filter((c: any) => c.status === "Publicado").length,
+  };
 
   // Serializar dados do Prisma
   const serializedPersonagens = JSON.parse(JSON.stringify(personagens));
   const serializedGrimorio = JSON.parse(JSON.stringify(grimorioLocais));
   const serializedNovel = JSON.parse(JSON.stringify({ id: novel.id, titulo: novel.titulo }));
-
-  const totalPalavras = capitulos.reduce((a: number, c: any) => a + (c.palavras_contagem || 0), 0);
 
   async function criarNovoCapitulo() {
     "use server";
@@ -87,7 +118,8 @@ export default async function EscritaPage({ params, searchParams }: PageProps) {
                 <h1 className="text-sm font-bold text-white">{serializedNovel.titulo}</h1>
               </div>
               <p className="text-[10px] text-slate-600 ml-5">
-                {totalPalavras.toLocaleString("pt-BR")} palavras totais · {capitulos.length} cap.
+                {estatisticas.totalPalavras.toLocaleString("pt-BR")} palavras totais · {capitulos.length} cap. · 
+                Média {estatisticas.mediaPalavras.toLocaleString("pt-BR")} palavras/cap.
               </p>
             </div>
           </div>
@@ -111,7 +143,7 @@ export default async function EscritaPage({ params, searchParams }: PageProps) {
 
       {/* Layout principal */}
       <div className="max-w-[1400px] mx-auto px-5 py-6 flex gap-5">
-        {/* Sidebar esquerda - Capítulos */}
+        {/* Sidebar esquerda - Capítulos com estatísticas */}
         <aside className="w-56 flex-shrink-0">
           <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-3 sticky top-[65px]">
             <div className="flex items-center justify-between mb-3 px-1">
@@ -126,7 +158,29 @@ export default async function EscritaPage({ params, searchParams }: PageProps) {
               </form>
             </div>
 
-            <div className="space-y-0.5 max-h-[65vh] overflow-y-auto">
+            {/* Mini estatísticas dos capítulos */}
+            {capitulos.length > 0 && (
+              <div className="mb-4 p-2 bg-slate-950/50 rounded-lg text-[10px]">
+                <div className="flex justify-between mb-1">
+                  <span className="text-slate-500">Rascunhos:</span>
+                  <span className="text-yellow-400 font-bold">{estatisticas.rascunhos}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Publicados:</span>
+                  <span className="text-green-400 font-bold">{estatisticas.publicados}</span>
+                </div>
+                {estatisticas.maiorCapitulo && (
+                  <div className="mt-1 pt-1 border-t border-slate-800">
+                    <span className="text-slate-500">Maior cap:</span>
+                    <span className="text-blue-400 ml-1">
+                      {estatisticas.maiorCapitulo.palavras_contagem?.toLocaleString("pt-BR") || 0}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-0.5 max-h-[55vh] overflow-y-auto">
               {capitulos.length === 0 ? (
                 <p className="text-slate-600 text-xs text-center py-8 px-2">
                   Nenhum capítulo ainda.
@@ -142,7 +196,12 @@ export default async function EscritaPage({ params, searchParams }: PageProps) {
                         : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
                     }`}
                   >
-                    <p className="truncate font-medium">{cap.titulo}</p>
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="truncate font-medium flex-1">{cap.titulo}</p>
+                      {cap.status === "Publicado" && (
+                        <span className="text-[8px] text-green-400 flex-shrink-0">✓</span>
+                      )}
+                    </div>
                     <p className={`text-[9px] mt-0.5 ${capituloSelecionado?.id === cap.id ? "text-blue-200" : "text-slate-600"}`}>
                       {(cap.palavras_contagem || 0).toLocaleString("pt-BR")} palavras
                     </p>
@@ -157,23 +216,34 @@ export default async function EscritaPage({ params, searchParams }: PageProps) {
         <main className="flex-1 min-w-0">
           {capituloSelecionado ? (
             <div className="space-y-4">
-              <div className="flex items-center justify-between gap-4">
-                <input
-                  type="text"
-                  defaultValue={capituloSelecionado.titulo}
-                  className="bg-transparent text-2xl font-black border-b border-slate-800 focus:border-blue-500 outline-none px-1 py-1 flex-1 transition-all placeholder:text-slate-700"
-                  placeholder="Título do capítulo..."
-                />
-                <div className="flex items-center gap-1.5 text-[11px] text-slate-600 flex-shrink-0">
-                  <Save size={11} />
-                  <span>Salvamento automático</span>
-                </div>
-              </div>
+              {/* Título do capítulo - Client Component */}
+              <TituloCapituloForm 
+                capituloId={capituloSelecionado.id}
+                tituloInicial={capituloSelecionado.titulo}
+                novelId={novelId}
+              />
 
+              {/* Status do capítulo - Client Component */}
+              <StatusCapituloSelect 
+                capituloId={capituloSelecionado.id}
+                statusInicial={capituloSelecionado.status || "Rascunho"}
+              />
+
+              {/* Informações adicionais */}
+              {capituloSelecionado.palavras_contagem > 0 && (
+                <div className="flex items-center gap-3 text-[10px] px-1">
+                  <span className="text-slate-600">
+                    ⏱️ Tempo estimado de leitura: {Math.ceil(capituloSelecionado.palavras_contagem / 200)} min
+                  </span>
+                </div>
+              )}
+
+              {/* Editor */}
               <div className="bg-slate-900/30 border border-slate-800 rounded-2xl overflow-hidden">
                 <ClientWrapper>
                   <EditorTiptap
                     capituloId={capituloSelecionado.id}
+                    novelId={novelId}
                     initialContent={capituloSelecionado.conteudo_json}
                   />
                 </ClientWrapper>
@@ -196,36 +266,79 @@ export default async function EscritaPage({ params, searchParams }: PageProps) {
           )}
         </main>
 
-        {/* Sidebar direita - Referências */}
+        {/* Sidebar direita - Referências com busca e interatividade */}
         {(serializedPersonagens.length > 0 || serializedGrimorio.length > 0) && (
           <aside className="w-52 flex-shrink-0">
             <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-3 sticky top-[65px] space-y-4">
-              <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold px-1">
-                Referências
-              </p>
+              <div className="flex items-center justify-between px-1">
+                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">
+                  Referências
+                </p>
+                {(buscaParam || serializedPersonagens.length > 20 || serializedGrimorio.length > 20) && (
+                  <Link
+                    href={`/escrita/${novelId}?capitulo=${capituloSelecionado?.id || ''}`}
+                    className="text-[9px] text-slate-600 hover:text-slate-400 transition-colors"
+                  >
+                    <X size={10} />
+                  </Link>
+                )}
+              </div>
+
+              {/* Barra de busca nas referências */}
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Buscar referências..."
+                  defaultValue={buscaParam || ''}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const value = (e.target as HTMLInputElement).value;
+                      window.location.href = `/escrita/${novelId}?capitulo=${capituloSelecionado?.id || ''}&busca=${encodeURIComponent(value)}`;
+                    }
+                  }}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-[10px] text-slate-300 placeholder:text-slate-600 focus:border-blue-500 outline-none"
+                />
+                <Search size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-600" />
+              </div>
 
               {serializedPersonagens.length > 0 && (
                 <div>
                   <p className="text-[10px] text-slate-600 mb-1.5 px-1 flex items-center gap-1">
                     <Users size={10} /> Personagens
+                    {buscaParam && <span className="text-[8px] text-blue-400">({serializedPersonagens.length})</span>}
                   </p>
-                  <div className="space-y-0.5">
-                    {serializedPersonagens.slice(0, 10).map((p: any) => (
+                  <div className="space-y-0.5 max-h-[200px] overflow-y-auto">
+                    {serializedPersonagens.slice(0, 20).map((p: any) => (
                       <div
                         key={p.id}
-                        className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-800/50 transition-all cursor-default"
+                        className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-800/50 transition-all cursor-pointer group"
+                        title="Clique para inserir no texto"
+                        onClick={() => {
+                          const event = new CustomEvent('insertMention', { 
+                            detail: { type: 'personagem', id: p.id, name: p.nome }
+                          });
+                          window.dispatchEvent(event);
+                        }}
                       >
                         <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-[9px] font-black flex-shrink-0">
                           {p.nome?.charAt(0)?.toUpperCase() || "?"}
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-[11px] text-slate-300 truncate font-medium">{p.nome}</p>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[11px] text-slate-300 truncate font-medium group-hover:text-blue-400 transition-colors">
+                            {p.nome}
+                          </p>
                           {p.papel && (
                             <p className="text-[9px] text-slate-600 truncate">{p.papel}</p>
                           )}
                         </div>
+                        <Plus size={8} className="text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
                       </div>
                     ))}
+                    {serializedPersonagens.length > 20 && !buscaParam && (
+                      <p className="text-[9px] text-center text-slate-600 py-2">
+                        +{serializedPersonagens.length - 20} personagens. Use a busca para ver mais.
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
@@ -234,22 +347,49 @@ export default async function EscritaPage({ params, searchParams }: PageProps) {
                 <div>
                   <p className="text-[10px] text-slate-600 mb-1.5 px-1 flex items-center gap-1">
                     <ScrollText size={10} /> Grimório
+                    {buscaParam && <span className="text-[8px] text-blue-400">({serializedGrimorio.length})</span>}
                   </p>
-                  <div className="space-y-0.5">
-                    {serializedGrimorio.slice(0, 10).map((g: any) => (
+                  <div className="space-y-0.5 max-h-[200px] overflow-y-auto">
+                    {serializedGrimorio.slice(0, 20).map((g: any) => (
                       <div
                         key={g.id}
-                        className="px-2 py-1.5 rounded-lg hover:bg-slate-800/50 transition-all cursor-default"
+                        className="px-2 py-1.5 rounded-lg hover:bg-slate-800/50 transition-all cursor-pointer group"
+                        onClick={() => {
+                          const event = new CustomEvent('insertMention', { 
+                            detail: { type: 'grimorio', id: g.id, name: g.titulo }
+                          });
+                          window.dispatchEvent(event);
+                        }}
                       >
-                        <p className="text-[11px] text-slate-300 truncate font-medium">{g.titulo}</p>
-                        {g.categoria && (
-                          <p className="text-[9px] text-slate-600">{g.categoria}</p>
-                        )}
+                        <div className="flex items-start gap-2">
+                          <BookOpen size={10} className="text-slate-500 mt-0.5 flex-shrink-0 group-hover:text-emerald-400 transition-colors" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[11px] text-slate-300 truncate font-medium group-hover:text-emerald-400 transition-colors">
+                              {g.titulo}
+                            </p>
+                            {g.categoria && (
+                              <p className="text-[9px] text-slate-600">{g.categoria}</p>
+                            )}
+                          </div>
+                          <Plus size={8} className="text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                        </div>
                       </div>
                     ))}
+                    {serializedGrimorio.length > 20 && !buscaParam && (
+                      <p className="text-[9px] text-center text-slate-600 py-2">
+                        +{serializedGrimorio.length - 20} itens. Use a busca para ver mais.
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
+
+              {/* Dica de atalho */}
+              <div className="pt-2 border-t border-slate-800 text-center">
+                <p className="text-[8px] text-slate-600">
+                  💡 Clique em qualquer item para inserir no texto
+                </p>
+              </div>
             </div>
           </aside>
         )}

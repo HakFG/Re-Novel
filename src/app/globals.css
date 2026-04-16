@@ -1,78 +1,1057 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@300;400;500&display=swap');
+
+/* ═══════════════════════════════════════════════════════════════
+   RE:NOVEL — THE INFINITE SCRIPTORIUM
+   A living manuscript from the beyond
+═══════════════════════════════════════════════════════════════ */
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #07090f;
+  --foreground: #e8e4d9;
+
+  /* Paleta arcana */
+  --ink-void: #07090f;
+  --ink-deep: #0d1018;
+  --ink-surface: #111420;
+  --ink-raised: #161b28;
+  --ink-border: rgba(148, 163, 184, 0.07);
+  --ink-border-glow: rgba(96, 165, 250, 0.15);
+
+  --script-primary: #e8e4d9;
+  --script-secondary: #9ca3af;
+  --script-muted: #4b5563;
+  --script-ghost: rgba(232, 228, 217, 0.04);
+
+  --aura-blue: #3b82f6;
+  --aura-violet: #8b5cf6;
+  --aura-rose: #f43f5e;
+  --aura-amber: #f59e0b;
+  --aura-emerald: #10b981;
+  --aura-cyan: #06b6d4;
+
+  --glow-blue: 0 0 40px rgba(59, 130, 246, 0.12), 0 0 80px rgba(59, 130, 246, 0.06);
+  --glow-violet: 0 0 40px rgba(139, 92, 246, 0.12), 0 0 80px rgba(139, 92, 246, 0.06);
+  --glow-soft: 0 4px 32px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255,255,255,0.03) inset;
+  --glow-border: 0 0 0 1px rgba(96, 165, 250, 0.1), 0 4px 32px rgba(0, 0, 0, 0.5);
+
+  --font-display: 'Cinzel', 'Times New Roman', serif;
+  --font-body: 'EB Garamond', 'Georgia', serif;
+  --font-mono: 'JetBrains Mono', monospace;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* ── Reset & Base ─────────────────────────────────────────── */
+
+*, *::before, *::after {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--ink-void);
+  color: var(--script-primary);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.7;
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
 }
 
-/* Estilos do TipTap */
+/* ── Cosmos Background — o universo que respira ──────────── */
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(59, 130, 246, 0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 10%, rgba(139, 92, 246, 0.05) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 60% at 50% 100%, rgba(16, 185, 129, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse 100% 100% at 50% 50%, rgba(7, 9, 15, 0) 0%, rgba(7, 9, 15, 0.4) 100%);
+  animation: cosmos-breathe 20s ease-in-out infinite alternate;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,0.35) 0.5px, transparent 0.5px),
+    radial-gradient(circle, rgba(255,255,255,0.2) 0.5px, transparent 0.5px),
+    radial-gradient(circle, rgba(96,165,250,0.4) 0.5px, transparent 0.5px);
+  background-size: 200px 200px, 150px 150px, 300px 300px;
+  background-position: 0 0, 75px 100px, 40px 80px;
+  opacity: 0.35;
+  animation: stars-drift 60s linear infinite;
+}
+
+@keyframes cosmos-breathe {
+  0%   { opacity: 0.8; transform: scale(1); }
+  50%  { opacity: 1; transform: scale(1.02); }
+  100% { opacity: 0.9; transform: scale(1.01); }
+}
+
+@keyframes stars-drift {
+  0%   { transform: translateY(0) translateX(0); }
+  100% { transform: translateY(-200px) translateX(-100px); }
+}
+
+/* ── Scrollbar — a trilha do escriba ─────────────────────── */
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--aura-blue) 0%, var(--aura-violet) 100%);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--aura-blue); }
+
+/* ── Selection ────────────────────────────────────────────── */
+
+::selection {
+  background: rgba(59, 130, 246, 0.25);
+  color: #e8e4d9;
+}
+
+/* ── Typography System ────────────────────────────────────── */
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+/* Títulos de novelas — o nome brilha como estrela */
+h1 {
+  font-size: clamp(2.5rem, 6vw, 5rem);
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+
+/* ── Floating Runes — runas flutuantes ambientais ────────── */
+
+@keyframes float-rune-1 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.03; }
+  33%       { transform: translate(20px, -30px) rotate(120deg); opacity: 0.07; }
+  66%       { transform: translate(-15px, 20px) rotate(240deg); opacity: 0.04; }
+}
+@keyframes float-rune-2 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.02; }
+  50%       { transform: translate(-25px, 35px) rotate(180deg); opacity: 0.06; }
+}
+@keyframes float-rune-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.03; }
+  40%       { transform: translate(30px, -20px) scale(1.2); opacity: 0.08; }
+  80%       { transform: translate(-10px, 15px) scale(0.9); opacity: 0.04; }
+}
+
+/* ── Cards & Surfaces — superfícies encantadas ─────────────
+
+   Todos os cards com borda luminosa sutil e efeito de profundidade
+   Tailwind usa bg-slate-900/40, border-slate-800, rounded-2xl
+   Vamos elevar isso!
+*/
+
+.bg-slate-900\/40,
+[class*="bg-slate-900/40"] {
+  background: linear-gradient(
+    135deg,
+    rgba(22, 27, 40, 0.7) 0%,
+    rgba(13, 16, 24, 0.8) 100%
+  ) !important;
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+}
+
+/* Cards com bordas mágicas */
+.border.border-slate-800,
+[class*="border-slate-800"] {
+  border-color: rgba(51, 65, 85, 0.5) !important;
+  box-shadow:
+    0 0 0 1px rgba(96, 165, 250, 0.04),
+    0 4px 24px rgba(0, 0, 0, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.03) inset;
+}
+
+/* ── Nav / Header — o portal ──────────────────────────────── */
+
+header.border-b,
+nav.border-b {
+  background: linear-gradient(
+    180deg,
+    rgba(7, 9, 15, 0.97) 0%,
+    rgba(10, 13, 22, 0.92) 100%
+  ) !important;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.08) !important;
+  box-shadow:
+    0 1px 0 rgba(59, 130, 246, 0.06),
+    0 4px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* ── Buttons — feitiços interativos ──────────────────────── */
+
+/* Botão primário azul */
+.bg-blue-600,
+[class*="bg-blue-600"] {
+  background: linear-gradient(
+    135deg,
+    #2563eb 0%,
+    #3b82f6 50%,
+    #1d4ed8 100%
+  ) !important;
+  box-shadow:
+    0 0 20px rgba(59, 130, 246, 0.25),
+    0 4px 16px rgba(0, 0, 0, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.1) inset !important;
+  border: 1px solid rgba(96, 165, 250, 0.2) !important;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.bg-blue-600::before,
+[class*="bg-blue-600"]::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.08),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.bg-blue-600:hover::before,
+[class*="bg-blue-600"]:hover::before {
+  left: 100%;
+}
+
+.bg-blue-600:hover,
+[class*="bg-blue-600"]:hover {
+  box-shadow:
+    0 0 30px rgba(59, 130, 246, 0.4),
+    0 4px 20px rgba(0, 0, 0, 0.5),
+    0 1px 0 rgba(255, 255, 255, 0.15) inset !important;
+  transform: translateY(-1px);
+}
+
+/* Botão emerald */
+.bg-emerald-700,
+[class*="bg-emerald-700"] {
+  background: linear-gradient(135deg, #047857, #10b981, #065f46) !important;
+  box-shadow:
+    0 0 20px rgba(16, 185, 129, 0.2),
+    0 4px 16px rgba(0, 0, 0, 0.4) !important;
+  border: 1px solid rgba(52, 211, 153, 0.15) !important;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.bg-emerald-700:hover,
+[class*="bg-emerald-700"]:hover {
+  box-shadow:
+    0 0 30px rgba(16, 185, 129, 0.35),
+    0 4px 20px rgba(0, 0, 0, 0.5) !important;
+  transform: translateY(-1px);
+}
+
+/* Botão amber */
+.bg-amber-700,
+[class*="bg-amber-700"] {
+  background: linear-gradient(135deg, #92400e, #d97706, #78350f) !important;
+  box-shadow: 0 0 20px rgba(217, 119, 6, 0.2), 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+  border: 1px solid rgba(251, 191, 36, 0.15) !important;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+/* ── Links nav — portais de navegação ─────────────────────── */
+
+a {
+  transition: all 0.2s ease;
+}
+
+/* ── Inputs — cristais de captura ─────────────────────────── */
+
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="password"],
+textarea,
+select {
+  background: rgba(7, 9, 15, 0.8) !important;
+  border: 1px solid rgba(51, 65, 85, 0.6) !important;
+  color: var(--script-primary) !important;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.3s ease,
+    background 0.2s ease !important;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+textarea:focus,
+select:focus {
+  border-color: rgba(59, 130, 246, 0.5) !important;
+  box-shadow:
+    0 0 0 3px rgba(59, 130, 246, 0.08),
+    0 0 16px rgba(59, 130, 246, 0.1) !important;
+  background: rgba(13, 16, 24, 0.9) !important;
+  outline: none !important;
+}
+
+/* ── Progress Bars — a jornada do escriba ─────────────────── */
+
+.bg-slate-800 {
+  background: rgba(15, 20, 35, 0.8) !important;
+}
+
+/* Barra de progresso azul-violeta */
+.bg-gradient-to-r.from-blue-500.to-purple-500,
+[class*="from-blue-500"][class*="to-purple-500"] {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(
+    90deg,
+    #3b82f6 0%,
+    #6366f1 40%,
+    #8b5cf6 70%,
+    #a855f7 100%
+  ) !important;
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+}
+
+[class*="from-blue-500"][class*="to-purple-500"]::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.25),
+    transparent
+  );
+  animation: progress-shine 3s ease-in-out infinite;
+}
+
+@keyframes progress-shine {
+  0%   { left: -60%; }
+  100% { left: 160%; }
+}
+
+/* ── Gradient text — títulos que brilham ─────────────────── */
+
+[style*="WebkitTextFillColor: transparent"],
+[style*="-webkit-text-fill-color: transparent"] {
+  filter: drop-shadow(0 0 30px rgba(96, 165, 250, 0.25));
+  animation: title-shimmer 8s ease-in-out infinite alternate;
+}
+
+@keyframes title-shimmer {
+  0%   { filter: drop-shadow(0 0 20px rgba(96, 165, 250, 0.15)); }
+  50%  { filter: drop-shadow(0 0 40px rgba(139, 92, 246, 0.25)); }
+  100% { filter: drop-shadow(0 0 25px rgba(96, 165, 250, 0.2)); }
+}
+
+/* ── Sidebar chips — capítulos ────────────────────────────── */
+
+/* Item de capítulo selecionado */
+.bg-blue-600.text-white {
+  background: linear-gradient(135deg, #1d4ed8, #3b82f6) !important;
+  box-shadow:
+    0 0 16px rgba(59, 130, 246, 0.3),
+    0 2px 8px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* ── Avatar circles — espíritos dos personagens ───────────── */
+
+.bg-gradient-to-br.from-blue-500.to-purple-600,
+[class*="from-blue-500"][class*="to-purple-600"] {
+  background: conic-gradient(
+    from 180deg at 50% 50%,
+    #3b82f6 0deg,
+    #6366f1 90deg,
+    #8b5cf6 180deg,
+    #a855f7 270deg,
+    #3b82f6 360deg
+  ) !important;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.35) !important;
+  animation: avatar-pulse 4s ease-in-out infinite;
+}
+
+@keyframes avatar-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(139, 92, 246, 0.25); }
+  50%       { box-shadow: 0 0 20px rgba(139, 92, 246, 0.5), 0 0 40px rgba(59, 130, 246, 0.15); }
+}
+
+/* ── Stat cards — o grimório de números ───────────────────── */
+
+[class*="bg-gradient-to-br"][class*="from-slate-900/40"] {
+  position: relative;
+  overflow: hidden;
+}
+
+[class*="bg-gradient-to-br"][class*="from-slate-900/40"]::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(96, 165, 250, 0.3),
+    rgba(139, 92, 246, 0.2),
+    transparent
+  );
+}
+
+/* ── Timeline — o fio do destino ──────────────────────────── */
+
+/* Linha vertical da timeline */
+.bg-gradient-to-b.from-slate-700 {
+  background: linear-gradient(
+    180deg,
+    rgba(59, 130, 246, 0.4) 0%,
+    rgba(139, 92, 246, 0.3) 40%,
+    rgba(16, 185, 129, 0.2) 70%,
+    transparent 100%
+  ) !important;
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.15);
+}
+
+/* Círculos da timeline */
+.border-red-500.bg-red-950\/70 {
+  box-shadow: 0 0 16px rgba(244, 63, 94, 0.4) !important;
+  animation: event-pulse-red 3s ease-in-out infinite;
+}
+
+.border-amber-500.bg-amber-950\/70 {
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.4) !important;
+  animation: event-pulse-amber 3s ease-in-out infinite;
+}
+
+@keyframes event-pulse-red {
+  0%, 100% { box-shadow: 0 0 10px rgba(244, 63, 94, 0.3); }
+  50%       { box-shadow: 0 0 24px rgba(244, 63, 94, 0.6); }
+}
+
+@keyframes event-pulse-amber {
+  0%, 100% { box-shadow: 0 0 10px rgba(245, 158, 11, 0.3); }
+  50%       { box-shadow: 0 0 24px rgba(245, 158, 11, 0.5); }
+}
+
+/* ── Tab navigation — portais de seção ────────────────────── */
+
+.bg-slate-900\/50.border.border-slate-800.rounded-xl {
+  background: rgba(10, 13, 22, 0.7) !important;
+  border: 1px solid rgba(51, 65, 85, 0.4) !important;
+  backdrop-filter: blur(20px);
+}
+
+/* Tab ativa */
+.bg-blue-600.text-white.shadow-lg {
+  background: linear-gradient(135deg, #1e40af, #3b82f6) !important;
+  box-shadow:
+    0 0 20px rgba(59, 130, 246, 0.3),
+    0 4px 12px rgba(0, 0, 0, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.08) inset !important;
+}
+
+/* ── Quick access cards — portais de acesso rápido ────────── */
+
+/* Cards gradientes do overview */
+.bg-gradient-to-br.from-blue-600.to-blue-700 {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%) !important;
+  box-shadow: 0 0 30px rgba(29, 78, 216, 0.2), 0 4px 16px rgba(0,0,0,0.4) !important;
+  border: 1px solid rgba(96, 165, 250, 0.15) !important;
+  transition: all 0.3s ease !important;
+}
+
+.bg-gradient-to-br.from-blue-600.to-blue-700:hover {
+  box-shadow: 0 0 40px rgba(59, 130, 246, 0.35), 0 8px 24px rgba(0,0,0,0.5) !important;
+  transform: translateY(-2px) scale(1.01);
+}
+
+.bg-gradient-to-br.from-emerald-700.to-teal-700 {
+  box-shadow: 0 0 30px rgba(16, 185, 129, 0.15), 0 4px 16px rgba(0,0,0,0.4) !important;
+  border: 1px solid rgba(52, 211, 153, 0.12) !important;
+  transition: all 0.3s ease !important;
+}
+
+.bg-gradient-to-br.from-amber-600.to-orange-700 {
+  box-shadow: 0 0 30px rgba(245, 158, 11, 0.15), 0 4px 16px rgba(0,0,0,0.4) !important;
+  border: 1px solid rgba(251, 191, 36, 0.12) !important;
+  transition: all 0.3s ease !important;
+}
+
+.bg-gradient-to-br.from-purple-600.to-pink-700 {
+  box-shadow: 0 0 30px rgba(139, 92, 246, 0.15), 0 4px 16px rgba(0,0,0,0.4) !important;
+  border: 1px solid rgba(167, 139, 250, 0.12) !important;
+  transition: all 0.3s ease !important;
+}
+
+/* ── Hover effects — toque mágico ─────────────────────────── */
+
+.hover\:border-slate-700:hover,
+[class*="hover:border-slate-700"]:hover {
+  border-color: rgba(71, 85, 105, 0.7) !important;
+  box-shadow:
+    0 0 0 1px rgba(96, 165, 250, 0.08),
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    0 1px 0 rgba(255, 255, 255, 0.04) inset !important;
+}
+
+/* ── Novel grid cards — os tomos do multiverso ─────────────── */
+
+/* Linha de topo nos cards de novel */
+.absolute.top-0.inset-x-0.h-px {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    currentColor 50%,
+    transparent 100%
+  ) !important;
+  opacity: 0.4;
+  filter: blur(0.5px);
+}
+
+/* ── Floating particles — partículas de magia ─────────────── */
+
+/* Injetar partículas no background via pseudo-elementos nas seções principais */
+.min-h-screen {
+  position: relative;
+}
+
+/* ── ProseMirror — o scriptorium sagrado ─────────────────── */
+
 .ProseMirror {
   outline: none;
+  font-family: var(--font-body) !important;
+  font-size: 1.1rem;
+  line-height: 1.9;
+  color: rgba(232, 228, 217, 0.9);
+  caret-color: #60a5fa;
+}
+
+/* Cursor pulsante no editor */
+.ProseMirror .ProseMirror-cursor {
+  border-left-color: #60a5fa !important;
+  animation: cursor-glow 1.2s ease-in-out infinite;
+}
+
+@keyframes cursor-glow {
+  0%, 100% { border-left-color: #60a5fa; box-shadow: none; }
+  50%       { border-left-color: #93c5fd; box-shadow: 0 0 6px rgba(96, 165, 250, 0.6); }
 }
 
 .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
-  color: #64748b;
+  color: rgba(75, 85, 99, 0.6);
   pointer-events: none;
   height: 0;
+  font-style: italic;
+  font-family: var(--font-body);
 }
 
 .ProseMirror h1 {
-  font-size: 2rem;
+  font-family: var(--font-display);
+  font-size: 2.2rem;
   font-weight: 700;
-  margin-top: 1.5rem;
+  margin-top: 2rem;
   margin-bottom: 1rem;
+  background: linear-gradient(135deg, #e8e4d9, #93c5fd, #c4b5fd);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: 0.02em;
 }
 
 .ProseMirror h2 {
-  font-size: 1.5rem;
+  font-family: var(--font-display);
+  font-size: 1.6rem;
   font-weight: 600;
-  margin-top: 1.25rem;
+  margin-top: 1.75rem;
   margin-bottom: 0.75rem;
+  color: #c4b5fd;
+  letter-spacing: 0.015em;
+}
+
+.ProseMirror h3 {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #93c5fd;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.ProseMirror p {
+  margin-bottom: 1.1em;
+  font-size: 1.1rem;
+  line-height: 1.85;
+}
+
+/* Primeira letra do parágrafo inicial */
+.ProseMirror > p:first-of-type:first-letter {
+  font-family: var(--font-display);
+  font-size: 3.5rem;
+  font-weight: 700;
+  float: left;
+  line-height: 0.8;
+  margin-right: 0.08em;
+  margin-top: 0.06em;
+  color: #60a5fa;
+  text-shadow: 0 0 20px rgba(96, 165, 250, 0.5);
 }
 
 .ProseMirror ul {
-  list-style-type: disc;
+  list-style-type: none;
   padding-left: 1.5rem;
+}
+
+.ProseMirror ul li::before {
+  content: '◆';
+  color: #3b82f6;
+  font-size: 0.5em;
+  margin-right: 0.75rem;
+  vertical-align: middle;
 }
 
 .ProseMirror ol {
   list-style-type: decimal;
   padding-left: 1.5rem;
+  counter-reset: item;
 }
 
 .ProseMirror blockquote {
-  border-left: 4px solid #3b82f6;
-  padding-left: 1rem;
+  border-left: 2px solid rgba(96, 165, 250, 0.5);
+  padding: 0.75rem 1.5rem;
   font-style: italic;
-  color: #94a3b8;
+  color: rgba(148, 163, 184, 0.85);
+  background: rgba(59, 130, 246, 0.03);
+  border-radius: 0 8px 8px 0;
+  margin: 1.5rem 0;
+  position: relative;
+}
+
+.ProseMirror blockquote::before {
+  content: '\201C';
+  font-family: var(--font-display);
+  font-size: 4rem;
+  color: rgba(96, 165, 250, 0.15);
+  position: absolute;
+  top: -1rem;
+  left: 0.5rem;
+  line-height: 1;
 }
 
 .ProseMirror strong {
   font-weight: 700;
+  color: rgba(232, 228, 217, 1);
 }
 
 .ProseMirror em {
   font-style: italic;
+  color: rgba(196, 181, 253, 0.85);
 }
+
+/* Code no editor */
+.ProseMirror code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.15);
+  border-radius: 4px;
+  padding: 0.1em 0.4em;
+  color: #93c5fd;
+}
+
+/* ── Mention tags no editor ────────────────────────────────── */
+
+.mention {
+  background: rgba(59, 130, 246, 0.12) !important;
+  border: 1px solid rgba(59, 130, 246, 0.25) !important;
+  color: #93c5fd !important;
+  border-radius: 4px !important;
+  padding: 1px 6px !important;
+  font-size: 0.9em !important;
+  transition: all 0.2s ease !important;
+}
+
+.mention:hover {
+  background: rgba(59, 130, 246, 0.2) !important;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.2) !important;
+}
+
+/* ── Animations — o tempo dos feitiços ────────────────────── */
+
+/* Entrada flutuante para novos elementos */
+@keyframes fade-up-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes float-gently {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-6px); }
+}
+
+@keyframes shimmer-border {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Stats numbers — contagem mágica */
+@keyframes count-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.9); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Text number counters ─────────────────────────────────── */
+
+/* Grandes números das stats */
+.text-3xl.font-black,
+.text-2xl.font-black,
+[class*="text-3xl"][class*="font-black"],
+[class*="text-2xl"][class*="font-black"] {
+  animation: count-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* ── Empty states ─────────────────────────────────────────── */
+
+/* "Comece a escrever" state */
+.text-6xl {
+  animation: float-gently 4s ease-in-out infinite;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.3));
+}
+
+/* ── Badge chips ──────────────────────────────────────────── */
+
+/* Papel badge color enhancements */
+.text-yellow-400.bg-yellow-500\/10.border-yellow-500\/30 {
+  box-shadow: 0 0 8px rgba(234, 179, 8, 0.1) inset;
+}
+
+.text-red-400.bg-red-500\/10.border-red-500\/30 {
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.1) inset;
+}
+
+.text-emerald-400.bg-emerald-500\/10.border-emerald-500\/30 {
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.1) inset;
+}
+
+.text-purple-400.bg-purple-500\/10.border-purple-500\/30 {
+  box-shadow: 0 0 8px rgba(168, 85, 247, 0.1) inset;
+}
+
+/* ── Active writing state ─────────────────────────────────── */
+
+/* Indicador "Em produção" */
+.bg-emerald-500\/20.text-emerald-400 {
+  animation: production-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes production-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); opacity: 0.9; }
+  50%       { box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.08); opacity: 1; }
+}
+
+/* ── Loading / skeleton shimmer ───────────────────────────── */
+
+@keyframes skeleton-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ── Dividers mágicos ─────────────────────────────────────── */
+
+hr {
+  border: none;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(96, 165, 250, 0.2),
+    rgba(139, 92, 246, 0.15),
+    transparent
+  );
+  margin: 2rem 0;
+}
+
+/* ── Tooltips & hover details ─────────────────────────────── */
+
+[title] {
+  cursor: help;
+}
+
+/* ── Glassmorphism para elementos específicos ─────────────── */
+
+.backdrop-blur-md,
+[class*="backdrop-blur"] {
+  backdrop-filter: blur(20px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
+}
+
+/* ── Icon enhancements ────────────────────────────────────── */
+
+.text-blue-400 svg,
+.text-blue-400 {
+  filter: drop-shadow(0 0 4px rgba(96, 165, 250, 0.3));
+}
+
+.text-purple-400 svg,
+.text-purple-400 {
+  filter: drop-shadow(0 0 4px rgba(196, 181, 253, 0.25));
+}
+
+.text-emerald-400 svg,
+.text-emerald-400 {
+  filter: drop-shadow(0 0 4px rgba(52, 211, 153, 0.25));
+}
+
+.text-amber-400 svg,
+.text-amber-400 {
+  filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.25));
+}
+
+/* ── Sticky elements ─────────────────────────────────────── */
+
+.sticky {
+  position: sticky;
+}
+
+/* ── Dashboard novel cards ────────────────────────────────── */
+
+/* Hover state no card do novel */
+.group:hover .group-hover\:text-blue-300 {
+  text-shadow: 0 0 8px rgba(147, 197, 253, 0.3);
+}
+
+/* ── Responsive refinements ───────────────────────────────── */
+
+@media (max-width: 768px) {
+  body::after {
+    opacity: 0.2;
+  }
+
+  .ProseMirror > p:first-of-type:first-letter {
+    font-size: 2.5rem;
+  }
+}
+
+/* ── Performance — respeitar preferências do usuário ──────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  body::before,
+  body::after {
+    animation: none !important;
+  }
+}
+
+/* ── RE:NOVEL wordmark ─────────────────────────────────────── */
+
+/* O título principal do app */
+.text-6xl.font-black.tracking-tighter {
+  font-family: var(--font-display) !important;
+  letter-spacing: -0.02em !important;
+}
+
+/* ── Micro-interactions — pequenas magias ─────────────────── */
+
+/* Botão + fica girando */
+.group:hover .group-hover\:rotate-90 {
+  transform: rotate(90deg) !important;
+}
+
+/* Seta voltar desliza */
+.group:hover .group-hover\:-translate-x-0\.5 {
+  transform: translateX(-3px) !important;
+  filter: drop-shadow(-2px 0 4px rgba(96, 165, 250, 0.3));
+}
+
+/* ── Active scale ─────────────────────────────────────────── */
+
+.active\:scale-95:active {
+  transform: scale(0.95);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+}
+
+.active\:scale-\[0\.98\]:active,
+[class*="active:scale-[0.98]"]:active {
+  transform: scale(0.98);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PARTICLES — Partículas flutuantes geradas com CSS puro
+   Usando elementos que já existem no DOM para não quebrar nada
+══════════════════════════════════════════════════════════════ */
+
+/* Ambient particle via fixed pseudo-elements — reais, no body */
+@keyframes particle-float-1 {
+  0%   { transform: translate(0, 0) scale(1); opacity: 0; }
+  10%  { opacity: 0.6; }
+  90%  { opacity: 0.4; }
+  100% { transform: translate(-80px, -120vh) scale(0.3); opacity: 0; }
+}
+
+@keyframes particle-float-2 {
+  0%   { transform: translate(0, 0) scale(1); opacity: 0; }
+  10%  { opacity: 0.5; }
+  90%  { opacity: 0.3; }
+  100% { transform: translate(60px, -100vh) scale(0.2); opacity: 0; }
+}
+
+@keyframes particle-float-3 {
+  0%   { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 0; }
+  15%  { opacity: 0.7; }
+  85%  { opacity: 0.3; }
+  100% { transform: translate(40px, -130vh) scale(0.1) rotate(360deg); opacity: 0; }
+}
+
+/* Partículas usando ::before e ::after de containers específicos */
+
+/* As páginas principais terão partículas via o wrapper relativo */
+.max-w-7xl::before,
+.max-w-\[1400px\]::before {
+  content: '';
+  position: fixed;
+  bottom: -10px;
+  left: 15%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(96, 165, 250, 0.8);
+  pointer-events: none;
+  z-index: 1;
+  box-shadow:
+    0 0 4px rgba(96, 165, 250, 0.6),
+    120px 0 2px rgba(139, 92, 246, 0.7),
+    240px -20px 2px rgba(16, 185, 129, 0.5),
+    380px 0 3px rgba(245, 158, 11, 0.6),
+    520px -10px 2px rgba(244, 63, 94, 0.4),
+    640px 0 2px rgba(96, 165, 250, 0.5),
+    780px -5px 3px rgba(167, 139, 250, 0.6),
+    900px -15px 2px rgba(52, 211, 153, 0.4);
+  animation: particle-float-1 12s ease-in-out infinite;
+  animation-delay: 0s;
+}
+
+.max-w-7xl::after,
+.max-w-\[1400px\]::after {
+  content: '';
+  position: fixed;
+  bottom: -10px;
+  left: 30%;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: rgba(139, 92, 246, 0.8);
+  pointer-events: none;
+  z-index: 1;
+  box-shadow:
+    0 0 3px rgba(139, 92, 246, 0.6),
+    150px 0 2px rgba(96, 165, 250, 0.6),
+    310px -30px 3px rgba(244, 63, 94, 0.5),
+    470px 0 2px rgba(16, 185, 129, 0.6),
+    620px -20px 2px rgba(245, 158, 11, 0.5),
+    750px 0 3px rgba(139, 92, 246, 0.4);
+  animation: particle-float-2 18s ease-in-out infinite;
+  animation-delay: -6s;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   AMBIENT ORBS — orbes de luz que flutuam suavemente
+   São efeitos de luz sem impacto no layout
+═══════════════════════════════════════════════════════════════ */
+
+@keyframes orb-drift-1 {
+  0%, 100% { transform: translate(0, 0); }
+  25%       { transform: translate(40px, -20px); }
+  50%       { transform: translate(-20px, 30px); }
+  75%       { transform: translate(30px, 15px); }
+}
+
+@keyframes orb-drift-2 {
+  0%, 100% { transform: translate(0, 0); }
+  33%       { transform: translate(-50px, 25px); }
+  66%       { transform: translate(25px, -35px); }
+}
+
+/* Os orbes do header já definidos no código inline do Tailwind são melhorados */
+.blur-3xl {
+  filter: blur(60px) saturate(150%) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SPECIAL: Editor page — modo foco total
+═══════════════════════════════════════════════════════════════ */
+
+/* O editor em si — a página da escrita */
+.bg-slate-900\/30.border.border-slate-800.rounded-2xl.overflow-hidden {
+  background: linear-gradient(
+    180deg,
+    rgba(10, 13, 22, 0.6) 0%,
+    rgba(7, 9, 15, 0.7) 100%
+  ) !important;
+  border: 1px solid rgba(51, 65, 85, 0.3) !important;
+  box-shadow:
+    0 0 0 1px rgba(96, 165, 250, 0.04),
+    0 8px 48px rgba(0, 0, 0, 0.6),
+    0 1px 0 rgba(255, 255, 255, 0.02) inset;
+}
+
+/* ── Dica de atalho box ───────────────────────────────────── */
+
+.bg-blue-500\/10.border.border-blue-500\/20 {
+  background: rgba(59, 130, 246, 0.06) !important;
+  border: 1px solid rgba(59, 130, 246, 0.15) !important;
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.05) inset;
+}
+
+/* ════════════════════════════════════════════════════════════
+   FIM — O scriptorium está completo
+════════════════════════════════════════════════════════════ */
