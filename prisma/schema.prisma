@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model capitulos {
+  id                 Int         @id @default(autoincrement())
+  novel_id           Int?
+  titulo             String      @db.VarChar(255)
+  ordem              Int?
+  conteudo_json      Json?
+  status             String?     @default("Rascunho") @db.VarChar(50)
+  palavras_contagem  Int?        @default(0)
+  capitulo_pai_id    Int?
+  notas_autor        String?
+  data_ultima_edicao DateTime?   @default(now()) @db.Timestamp(6)
+  capitulos          capitulos?  @relation("capitulosTocapitulos", fields: [capitulo_pai_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_capitulos    capitulos[] @relation("capitulosTocapitulos")
+  novels             novels?     @relation(fields: [novel_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model grimorio {
+  id                       Int     @id @default(autoincrement())
+  novel_id                 Int?
+  categoria                String? @db.VarChar(100)
+  titulo                   String  @db.VarChar(255)
+  conteudo                 String?
+  tags                     Json?
+  primeira_mencao_capitulo Int?
+  imagem_url               String? @db.VarChar(255)
+  novels                   novels? @relation(fields: [novel_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model novels {
+  id                  Int           @id @default(autoincrement())
+  titulo              String        @db.VarChar(255)
+  sinopse             String?
+  genero              String?       @db.VarChar(100)
+  status              String?       @default("Em Planejamento") @db.VarChar(50)
+  progresso_total     Int?          @default(0)
+  data_criacao        DateTime?     @default(now()) @db.Timestamp(6)
+  capitulos_estimados Int?          @default(0)
+  link_wattpad        String?       @db.VarChar(255)
+  config_visual       Json?
+  capitulos           capitulos[]
+  grimorio            grimorio[]
+  personagens         personagens[]
+  timeline            timeline[]
+}
+
+model personagens {
+  id                       Int        @id @default(autoincrement())
+  novel_id                 Int?
+  nome                     String     @db.VarChar(255)
+  idade                    Int?
+  papel                    String?    @db.VarChar(100)
+  objetivo_neste_volume    String?
+  primeira_mencao_capitulo String?    @db.VarChar(100)
+  descricao_fisica         String?
+  personalidade            String?
+  tags                     Json?
+  checklist_aparicoes      Json?
+  data_criacao             DateTime?  @default(now()) @db.Timestamp(6)
+  novels                   novels?    @relation(fields: [novel_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  timeline                 timeline[]
+}
+
+model timeline {
+  id                    Int          @id @default(autoincrement())
+  novel_id              Int?
+  evento_nome           String       @db.VarChar(255)
+  descricao             String?
+  capitulo_estimado     Int?
+  importancia           Int?         @default(1)
+  impacto_personagem_id Int?
+  concluido             Boolean?     @default(false)
+  personagens           personagens? @relation(fields: [impacto_personagem_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  novels                novels?      @relation(fields: [novel_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
