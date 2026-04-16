@@ -1,11 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Users, ScrollText, Plus, Pencil, X, Search, BookOpen } from "lucide-react";
+import { ArrowLeft, Users, ScrollText, Plus, Pencil, X } from "lucide-react";
 import EditorTiptap from "@/components/EditorTiptap";
 import ClientWrapper from "@/components/ClientWrapper";
 import TituloCapituloForm from "@/components/TituloCapituloForm";
 import StatusCapituloSelect from "@/components/StatusCapituloSelect";
+import { SearchInput } from "@/components/SearchInput";
+import { ReferenciasList } from "@/components/ReferenciasList";
 import { createCapitulo, getCapitulos } from "@/lib/actions";
 
 type PageProps = {
@@ -284,112 +286,19 @@ export default async function EscritaPage({ params, searchParams }: PageProps) {
                 )}
               </div>
 
-              {/* Barra de busca nas referências */}
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Buscar referências..."
-                  defaultValue={buscaParam || ''}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      const value = (e.target as HTMLInputElement).value;
-                      window.location.href = `/escrita/${novelId}?capitulo=${capituloSelecionado?.id || ''}&busca=${encodeURIComponent(value)}`;
-                    }
-                  }}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-[10px] text-slate-300 placeholder:text-slate-600 focus:border-blue-500 outline-none"
-                />
-                <Search size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-600" />
-              </div>
+              {/* Barra de busca - Client Component */}
+              <SearchInput 
+                novelId={novelId} 
+                capituloId={capituloSelecionado?.id || null} 
+                buscaParam={buscaParam} 
+              />
 
-              {serializedPersonagens.length > 0 && (
-                <div>
-                  <p className="text-[10px] text-slate-600 mb-1.5 px-1 flex items-center gap-1">
-                    <Users size={10} /> Personagens
-                    {buscaParam && <span className="text-[8px] text-blue-400">({serializedPersonagens.length})</span>}
-                  </p>
-                  <div className="space-y-0.5 max-h-[200px] overflow-y-auto">
-                    {serializedPersonagens.slice(0, 20).map((p: any) => (
-                      <div
-                        key={p.id}
-                        className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-800/50 transition-all cursor-pointer group"
-                        title="Clique para inserir no texto"
-                        onClick={() => {
-                          const event = new CustomEvent('insertMention', { 
-                            detail: { type: 'personagem', id: p.id, name: p.nome }
-                          });
-                          window.dispatchEvent(event);
-                        }}
-                      >
-                        <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-[9px] font-black flex-shrink-0">
-                          {p.nome?.charAt(0)?.toUpperCase() || "?"}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[11px] text-slate-300 truncate font-medium group-hover:text-blue-400 transition-colors">
-                            {p.nome}
-                          </p>
-                          {p.papel && (
-                            <p className="text-[9px] text-slate-600 truncate">{p.papel}</p>
-                          )}
-                        </div>
-                        <Plus size={8} className="text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-                      </div>
-                    ))}
-                    {serializedPersonagens.length > 20 && !buscaParam && (
-                      <p className="text-[9px] text-center text-slate-600 py-2">
-                        +{serializedPersonagens.length - 20} personagens. Use a busca para ver mais.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {serializedGrimorio.length > 0 && (
-                <div>
-                  <p className="text-[10px] text-slate-600 mb-1.5 px-1 flex items-center gap-1">
-                    <ScrollText size={10} /> Grimório
-                    {buscaParam && <span className="text-[8px] text-blue-400">({serializedGrimorio.length})</span>}
-                  </p>
-                  <div className="space-y-0.5 max-h-[200px] overflow-y-auto">
-                    {serializedGrimorio.slice(0, 20).map((g: any) => (
-                      <div
-                        key={g.id}
-                        className="px-2 py-1.5 rounded-lg hover:bg-slate-800/50 transition-all cursor-pointer group"
-                        onClick={() => {
-                          const event = new CustomEvent('insertMention', { 
-                            detail: { type: 'grimorio', id: g.id, name: g.titulo }
-                          });
-                          window.dispatchEvent(event);
-                        }}
-                      >
-                        <div className="flex items-start gap-2">
-                          <BookOpen size={10} className="text-slate-500 mt-0.5 flex-shrink-0 group-hover:text-emerald-400 transition-colors" />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[11px] text-slate-300 truncate font-medium group-hover:text-emerald-400 transition-colors">
-                              {g.titulo}
-                            </p>
-                            {g.categoria && (
-                              <p className="text-[9px] text-slate-600">{g.categoria}</p>
-                            )}
-                          </div>
-                          <Plus size={8} className="text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-                        </div>
-                      </div>
-                    ))}
-                    {serializedGrimorio.length > 20 && !buscaParam && (
-                      <p className="text-[9px] text-center text-slate-600 py-2">
-                        +{serializedGrimorio.length - 20} itens. Use a busca para ver mais.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Dica de atalho */}
-              <div className="pt-2 border-t border-slate-800 text-center">
-                <p className="text-[8px] text-slate-600">
-                  💡 Clique em qualquer item para inserir no texto
-                </p>
-              </div>
+              {/* Lista de referências - Client Component */}
+              <ReferenciasList 
+                personagens={serializedPersonagens}
+                grimorio={serializedGrimorio}
+                buscaParam={buscaParam}
+              />
             </div>
           </aside>
         )}
