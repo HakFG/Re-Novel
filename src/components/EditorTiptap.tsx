@@ -4,7 +4,7 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import TextAlign from '@tiptap/extension-text-align';
-import { updateCapituloConteudo, createMencao } from '@/lib/actions';
+import { updateCapituloConteudo } from '@/lib/actions';
 import { debounce } from 'lodash';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -29,76 +29,20 @@ export default function EditorTiptap({ capituloId, novelId, initialContent, onWo
     return matches ? matches.length : 0;
   }, []);
 
-  const extractMentions = useCallback((content: any, chapterId: number, novelIdParam: number) => {
-    if (!content || !content.content) return [];
-    
-    const mentions: Array<{
-      capituloId: number;
-      novelId: number;
-      personagemId?: number;
-      grimorioId?: number;
-      tipo: string;
-      posicaoInicio: number;
-      posicaoFim: number;
-      textoMencionado: string;
-    }> = [];
-    
-    let globalPosition = 0;
-    
-    const traverse = (node: any) => {
-      if (node.type === 'text' && node.text) {
-        const regex = /\[\[([A-Z]+):(\d+)\|([^\]]+)\]\]/g;
-        let match;
-        while ((match = regex.exec(node.text)) !== null) {
-          const [fullMatch, tipo, idStr, nome] = match;
-          const startPos = globalPosition + match.index;
-          const endPos = startPos + fullMatch.length;
-          
-          mentions.push({
-            capituloId: chapterId,
-            novelId: novelIdParam,
-            tipo: tipo,
-            [tipo === 'PERSONAGEM' ? 'personagemId' : 'grimorioId']: parseInt(idStr),
-            posicaoInicio: startPos,
-            posicaoFim: endPos,
-            textoMencionado: nome,
-          });
-        }
-        globalPosition += node.text.length;
-      } else if (node.content) {
-        node.content.forEach(traverse);
-      }
-    };
-    
-    if (content.content) {
-      content.content.forEach(traverse);
-    }
-    
-    return mentions;
-  }, []);
-
   const updateContent = useCallback(
     debounce(async (content: any, wordCount: number) => {
       setSaving(true);
       try {
         await updateCapituloConteudo(capituloId, content, wordCount);
-        
-        if (novelId) {
-          const mentions = extractMentions(content, capituloId, novelId);
-          for (const mention of mentions) {
-            await createMencao(mention);
-          }
-        }
-        
         setLastSaved(new Date());
+        if (onWordCountChange) onWordCountChange(wordCount);
       } catch (error) {
         console.error('Erro ao salvar:', error);
       } finally {
         setSaving(false);
       }
-      if (onWordCountChange) onWordCountChange(wordCount);
     }, 1500),
-    [capituloId, novelId, onWordCountChange, extractMentions]
+    [capituloId, onWordCountChange]
   );
 
   const editor = useEditor({
@@ -127,6 +71,7 @@ export default function EditorTiptap({ capituloId, novelId, initialContent, onWo
     },
   });
 
+  // Escutar eventos de menção
   useEffect(() => {
     const handleInsertMention = (event: CustomEvent) => {
       const { type, id, name } = event.detail;
@@ -134,12 +79,10 @@ export default function EditorTiptap({ capituloId, novelId, initialContent, onWo
         const mentionText = `[[${type.toUpperCase()}:${id}|${name}]]`;
         editor.commands.insertContent(mentionText);
         editor.commands.focus();
-        console.log(`✅ Menção inserida: ${name}`);
       }
     };
 
     window.addEventListener('insertMention', handleInsertMention as EventListener);
-    
     return () => {
       window.removeEventListener('insertMention', handleInsertMention as EventListener);
     };
@@ -177,7 +120,6 @@ export default function EditorTiptap({ capituloId, novelId, initialContent, onWo
     <div className="space-y-4">
       {/* Toolbar */}
       <div className="flex flex-wrap gap-2 p-3 bg-slate-900 border border-slate-800 rounded-xl sticky top-0 z-10 backdrop-blur-sm">
-        {/* Formatação básica */}
         <ToolbarButton onClick={() => editor?.chain().focus().toggleBold().run()} active={editor?.isActive('bold')} title="Negrito (Ctrl+B)">
           <strong>N</strong>
         </ToolbarButton>
@@ -187,7 +129,6 @@ export default function EditorTiptap({ capituloId, novelId, initialContent, onWo
         
         <div className="w-px h-8 bg-slate-700 mx-1" />
         
-        {/* Títulos */}
         <ToolbarButton onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} active={editor?.isActive('heading', { level: 1 })} title="Título 1">
           H1
         </ToolbarButton>
@@ -197,7 +138,7 @@ export default function EditorTiptap({ capituloId, novelId, initialContent, onWo
         
         <div className="w-px h-8 bg-slate-700 mx-1" />
         
-        {/* Alinhamento de texto - NOVIDADE! */}
+        {/* Botões de alinhamento */}
         <ToolbarButton onClick={() => editor?.chain().focus().setTextAlign('left').run()} active={editor?.isActive({ textAlign: 'left' })} title="Alinhar à esquerda">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="3" y1="6" x2="21" y2="6"/>
@@ -224,14 +165,11 @@ export default function EditorTiptap({ capituloId, novelId, initialContent, onWo
             <line x1="3" y1="6" x2="21" y2="6"/>
             <line x1="3" y1="12" x2="21" y2="12"/>
             <line x1="3" y1="18" x2="21" y2="18"/>
-            <line x1="5" y1="6" x2="5" y2="18"/>
-            <line x1="19" y1="6" x2="19" y2="18"/>
           </svg>
         </ToolbarButton>
         
         <div className="w-px h-8 bg-slate-700 mx-1" />
         
-        {/* Listas */}
         <ToolbarButton onClick={() => editor?.chain().focus().toggleBulletList().run()} active={editor?.isActive('bulletList')} title="Lista com marcadores">
           • Lista
         </ToolbarButton>
@@ -244,7 +182,6 @@ export default function EditorTiptap({ capituloId, novelId, initialContent, onWo
         
         <div className="w-px h-8 bg-slate-700 mx-1" />
         
-        {/* Desfazer/Refazer */}
         <ToolbarButton onClick={() => editor?.chain().focus().undo().run()} disabled={!editor?.can().undo()} title="Desfazer (Ctrl+Z)">
           ↩️ Desfazer
         </ToolbarButton>
@@ -252,7 +189,6 @@ export default function EditorTiptap({ capituloId, novelId, initialContent, onWo
           ↪️ Refazer
         </ToolbarButton>
         
-        {/* Indicador de salvamento */}
         <div className="flex-1" />
         <div className="flex items-center gap-2 text-[10px]">
           {saving ? (
@@ -273,19 +209,15 @@ export default function EditorTiptap({ capituloId, novelId, initialContent, onWo
         </div>
       </div>
 
-      {/* Editor */}
       <EditorContent editor={editor} />
       
-      {/* Rodapé com estatísticas */}
       {editor && (
         <div className="flex justify-between items-center text-[10px] text-slate-600 px-2">
           <div className="flex gap-3">
             <span>📝 {editor.getText().length} caracteres</span>
             <span>📊 {countWords(editor.getText())} palavras</span>
           </div>
-          <div>
-            💡 Use @ ou clique nos itens da barra lateral para inserir referências
-          </div>
+          <div>💡 Clique nos itens da barra lateral para inserir referências</div>
         </div>
       )}
     </div>
