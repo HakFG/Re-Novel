@@ -6,6 +6,7 @@ import EditorTiptap from "@/components/EditorTiptap";
 import ClientWrapper from "@/components/ClientWrapper";
 import TituloCapituloForm from "@/components/TituloCapituloForm";
 import StatusCapituloSelect from "@/components/StatusCapituloSelect";
+import EditorWrapper from "@/components/EditorWrapper";
 import { SearchInput } from "@/components/SearchInput";
 import { ReferenciasList } from "@/components/ReferenciasList";
 import { createCapitulo, getCapitulos } from "@/lib/actions";
@@ -241,15 +242,13 @@ export default async function EscritaPage({ params, searchParams }: PageProps) {
               )}
 
               {/* Editor */}
-              <div className="bg-slate-900/30 border border-slate-800 rounded-2xl overflow-hidden">
-                <ClientWrapper>
-                  <EditorTiptap
-                    capituloId={capituloSelecionado.id}
-                    novelId={novelId}
-                    initialContent={capituloSelecionado.conteudo_json}
-                  />
-                </ClientWrapper>
-              </div>
+<div className="bg-slate-900/30 border border-slate-800 rounded-2xl overflow-hidden">
+  <EditorWrapper
+    capituloId={capituloSelecionado.id}
+    novelId={novelId}
+    initialContent={capituloSelecionado.conteudo_json}
+  />
+</div>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">

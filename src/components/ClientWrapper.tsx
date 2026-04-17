@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 interface ClientWrapperProps {
   children: React.ReactNode;
@@ -13,7 +13,7 @@ export default function ClientWrapper({ children }: ClientWrapperProps) {
     setMounted(true);
   }, []);
 
-  // Não retorna nada no servidor para evitar hidratação
+  // Não retorna nada no servidor
   if (!mounted) {
     return null;
   }
